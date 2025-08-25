@@ -132,8 +132,9 @@
       <div class="chips">
         <span class="pill" id="qChip" hidden>Q: <strong id="qNum">1</strong></span>
         <span class="pill" id="timerChip" hidden>⏱ <strong id="timerText">00:00</strong></span>
-        <a class="btn" href="teacher.html" target="_blank" rel="noopener" title="Open Teacher Dock (mobile)">👩‍🏫 Teacher</a>
-        <button class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
+    <a class="btn" href="teacher.html" title="Open Teacher Dock (mobile)">👩‍🏫 Teacher</a>
+    <button class="btn" id="btnSignOut" style="display:none">Sign Out</button>
+    <button class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
       </div>
     </header>
 
@@ -264,7 +265,7 @@
 
     // Listen for control messages written by the teacher UI
     const controlsRef = ref(db, 'controls/latest');
-    onValue(controlsRef, snap => {
+  onValue(controlsRef, snap => {
       const msg = snap.val();
       if(!msg) return;
       // Map incoming actions to existing global functions in the page
@@ -284,6 +285,17 @@
       const cred = await signInWithEmailAndPassword(auth, email, password);
       return cred.user;
     };
+
+    // expose sign-out and auth state changes to the main script
+    window.firebaseSignOut = async function(){
+      try{ await auth.signOut(); }catch(e){ console.warn('firebaseSignOut error', e); }
+    };
+
+    onAuthStateChanged(auth, (u)=>{
+      // expose current user globally and dispatch an event that other scripts can listen for
+      window.firebaseUser = u || null;
+      try{ window.dispatchEvent(new CustomEvent('firebase-auth-changed', { detail: u })); }catch(e){}
+    });
   </script>
 
   <script>
@@ -768,8 +780,16 @@
       const host = $('#dockBtns'); host.innerHTML='';
       state.guilds.forEach((g,idx)=>{
         const row = document.createElement('div'); row.className='gBtnRow';
-        const hit = document.createElement('button'); hit.className='btn hit'; hit.textContent = `${g.name} HIT`; hit.onclick=()=>actHit(idx);
-        const miss = document.createElement('button'); miss.className='btn miss'; miss.textContent = `${g.name} MISS`; miss.onclick=()=>actMiss(idx);
+        const hit = document.createElement('button'); hit.className='btn hit'; hit.textContent = `${g.name} HIT`;
+        hit.onclick = ()=>{
+          actHit(idx);
+          if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('hit', { g: idx });
+        };
+        const miss = document.createElement('button'); miss.className='btn miss'; miss.textContent = `${g.name} MISS`;
+        miss.onclick = ()=>{
+          actMiss(idx);
+          if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('miss', { g: idx });
+        };
         row.appendChild(hit); row.appendChild(miss); host.appendChild(row);
       });
     }
@@ -803,6 +823,15 @@
 
   // initialize timer UI
   $('#timerText').textContent='00:00';
+
+  // Show/hide Sign Out button based on firebase auth state
+  window.addEventListener('firebase-auth-changed', (e)=>{
+    const user = e.detail;
+    const btn = $('#btnSignOut'); if(!btn) return;
+    if(user) btn.style.display = '';
+    else btn.style.display = 'none';
+  });
+  const sbtn = $('#btnSignOut'); if(sbtn) sbtn.addEventListener('click', ()=>{ if(window.firebaseSignOut) window.firebaseSignOut(); });
 
   // Initial log
   logLine('Ready. Use 1/2/3 for hits and Alt+1/2/3 for misses. Open Config (G) to set subject image pack, colors, and hearts.');
