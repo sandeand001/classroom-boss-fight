@@ -23,12 +23,15 @@ jobs:
           rsync -av --exclude='.git' --exclude='.github/actions' --exclude='node_modules' ./ out/
 
       - name: Configure GitHub Pages
+        # configure-pages@v3 is the current recommended action for Pages setup
         uses: actions/configure-pages@v3
 
       - name: Upload artifact for GitHub Pages
+        # upload-pages-artifact@v1 is the Pages-specific upload action (not the deprecated upload-artifact)
         uses: actions/upload-pages-artifact@v1
         with:
           path: ./out
 
       - name: Deploy to GitHub Pages
+        # deploy-pages@v1 performs the final Pages deployment
         uses: actions/deploy-pages@v1
