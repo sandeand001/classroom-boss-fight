@@ -273,6 +273,23 @@
       else if(msg.action === 'miss') window.actMiss && window.actMiss(msg.payload?.g);
       else if(msg.action === 'reset') window.resetFight && window.resetFight();
       else if(msg.action === 'undo') window.undo && window.undo();
+      else if(msg.action === 'config'){
+        const p = msg.payload || {};
+        // apply subject/HP/background if present
+        if(p.subject) {
+          setSubjectImages(p.subject);
+          // persist
+          state.bossSubject = p.subject;
+        }
+        if(typeof p.bossHP === 'number'){
+          state.bossHPMax = clamp(p.bossHP, 1, 20);
+          state.bossHP = Math.min(state.bossHP, state.bossHPMax);
+        }
+        if(p.background) applyBackground(p.background);
+        // save config and reset fight so new settings take effect
+        localStorage.setItem('bossfight_settings', JSON.stringify({ bossName: state.bossName, bossHPMax: state.bossHPMax, imgs: state.imgs, bossSubject: state.bossSubject, bossNameLocked: state.bossNameLocked, bgName: state.bgName, guilds: state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})) }));
+        resetFight(); logLine('Remote config applied: fight reset to apply new settings.');
+      }
     });
 
     // Helpers exposed to the global page
@@ -288,7 +305,9 @@
 
     // expose sign-out and auth state changes to the main script
     window.firebaseSignOut = async function(){
-      try{ await auth.signOut(); }catch(e){ console.warn('firebaseSignOut error', e); }
+      try{ await auth.signOut();
+        try{ window.location.href = 'teacher.html'; }catch(e){}
+      }catch(e){ console.warn('firebaseSignOut error', e); }
     };
 
     onAuthStateChanged(auth, (u)=>{
