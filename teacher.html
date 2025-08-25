@@ -5,41 +5,104 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Teacher Dock — Mobile</title>
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial;background:#0f1222;color:#e8eaf6;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
-    .card{background:#171a2f;padding:14px;border-radius:12px;width:100%;max-width:420px}
-    input,button{font:inherit}
-    .gRow{display:flex;gap:8px}
-    .btn{padding:10px;border-radius:8px;border:none;background:#7c9cff;color:#061029;width:100%}
+    :root{ --bg:#0f1222; --panel:#171a2f; --muted:#aab0d5; --accent:#7c9cff; --btnText:#061029 }
+    html,body{height:100%; margin:0; background:radial-gradient(800px 400px at 10% 0%, #151737 0%, var(--bg) 60%); color:#e8eaf6; font-family:system-ui,Segoe UI,Roboto,Arial}
+    .page{min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:18px}
+    .card{background:var(--panel); padding:16px; border-radius:14px; width:100%; max-width:760px; box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    h2{margin:0 0 8px 0; font-size:18px}
+    p.hint{margin:6px 0 12px 0; color:var(--muted); font-size:13px}
+    input,select,button{font:inherit}
+    .form-row{display:flex; gap:8px; margin-bottom:10px}
+    .form-row input[type='text'], .form-row input[type='password'], select{flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,.06); background:#0f1230; color:#e8eaf6}
+    .controls{display:grid; gap:12px}
+    /* Buttons: large tap targets on mobile; compact grid on wider screens */
+    .btn{padding:12px 10px; border-radius:10px; border:none; background:var(--accent); color:var(--btnText); width:100%; font-weight:700}
+    .muted-btn{background:transparent; border:1px solid rgba(255,255,255,.06); color:var(--muted)}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+    .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+    .section{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)); padding:10px; border-radius:10px}
+    #status{min-height:20px; color:var(--muted); font-size:13px}
+    /* Responsive tweaks */
+    @media (max-width:640px){
+      .card{padding:14px; border-radius:12px}
+      .grid-2{grid-template-columns:1fr}
+      .grid-3{grid-template-columns:1fr}
+      .form-row input[type='text'], .form-row input[type='password']{padding:14px}
+      .btn{padding:14px}
+    }
+    @media (min-width:900px){
+      .page{align-items:center}
+      .card{padding:20px}
+    }
   </style>
 </head>
 <body>
-  <h2>Teacher Dock</h2>
-  <div class="card">
-    <div style="margin-bottom:8px;color:#aab0d5;font-size:13px">Sign in as teacher</div>
-    <input id="email" placeholder="teacher@example.com" style="width:100%;padding:8px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:#0f1230;color:#e8eaf6" />
-    <input id="password" type="password" placeholder="password" style="width:100%;padding:8px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:#0f1230;color:#e8eaf6" />
-    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="btnSignIn">Sign In</button><button class="btn" id="btnResetPassword">Reset Password</button><button class="btn" id="btnSignOut">Sign Out</button></div>
-    <div id="status" style="margin-top:10px;color:#aab0d5;font-size:13px"></div>
+  <div class="page">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <h2>Teacher Dock</h2>
+        <div style="font-size:12px;color:var(--muted)">Mobile · Tablet</div>
+      </div>
+      <p class="hint">Sign in to send remote controls to the classroom. Controls are large for touch and rearrange on wider screens.</p>
 
-    <div id="controls" style="margin-top:12px;display:none">
-      <div style="height:8px"></div>
-      <div style="margin-bottom:10px;">
-        <label style="display:block;color:#aab0d5;margin-bottom:6px">Boss Image Pack</label>
-        <select id="cfgSubjectMobile" style="width:100%;padding:8px;border-radius:8px;background:#0f1230;color:#e8eaf6;border:1px solid rgba(255,255,255,.06)">
-          <option value="math">Math</option>
-          <option value="phonics">Phonics</option>
-          <option value="story-comprehension">Story Comprehension</option>
-        </select>
+      <div class="section">
+        <div class="form-row">
+          <input id="email" placeholder="teacher@example.com" aria-label="Email" />
+        </div>
+        <div class="form-row">
+          <input id="password" type="password" placeholder="password" aria-label="Password" />
+        </div>
+        <div class="grid-2" style="margin-top:6px">
+          <button class="btn" id="btnSignIn">Sign In</button>
+          <button class="btn muted-btn" id="btnResetPassword">Reset Password</button>
+        </div>
+        <div style="margin-top:8px; display:flex; justify-content:flex-end"><button class="btn muted-btn" id="btnSignOut" style="display:none">Sign Out</button></div>
+        <div id="status" style="margin-top:8px"></div>
       </div>
-      <div style="margin-bottom:10px;">
-        <label style="display:block;color:#aab0d5;margin-bottom:6px">Boss Hearts (1-20)</label>
-        <input id="cfgBossHPMobile" type="number" min="1" max="20" value="8" style="width:100%;padding:8px;border-radius:8px;background:#0f1230;color:#e8eaf6;border:1px solid rgba(255,255,255,.06)" />
+
+      <div id="controls" class="controls" style="display:none;margin-top:12px">
+        <div class="section">
+          <label style="display:block;color:var(--muted);margin-bottom:6px">Boss Image Pack</label>
+          <select id="cfgSubjectMobile" aria-label="Boss Image Pack">
+            <option value="math">Math</option>
+            <option value="phonics">Phonics</option>
+            <option value="story-comprehension">Story Comprehension</option>
+          </select>
+        </div>
+
+        <div class="section">
+          <label style="display:block;color:var(--muted);margin-bottom:6px">Boss Hearts (1-20)</label>
+          <input id="cfgBossHPMobile" type="number" min="1" max="20" value="8" aria-label="Boss Hearts" />
+        </div>
+
+        <div class="grid-2">
+          <button class="btn" id="btnSendConfig">Apply Config</button>
+          <button class="btn muted-btn" id="btnReset">Reset</button>
+        </div>
+
+        <div class="section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700">Guild Controls</div>
+            <div style="font-size:12px;color:var(--muted)">Tap once per action</div>
+          </div>
+          <div class="grid-3">
+            <button class="btn" id="hit0">G1 Hit</button>
+            <button class="btn" id="hit1">G2 Hit</button>
+            <button class="btn" id="hit2">G3 Hit</button>
+          </div>
+          <div style="height:8px"></div>
+          <div class="grid-3">
+            <button class="btn muted-btn" id="miss0">G1 Miss</button>
+            <button class="btn muted-btn" id="miss1">G2 Miss</button>
+            <button class="btn muted-btn" id="miss2">G3 Miss</button>
+          </div>
+          <div style="height:8px"></div>
+          <div class="grid-2">
+            <button class="btn muted-btn" id="btnUndo">Undo</button>
+            <button class="btn" id="btnResetBottom" style="display:none">Reset (alt)</button>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="btnSendConfig">Apply Config</button></div>
-      <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit0">Guild 1 Hit</button><button class="btn" id="miss0">Guild 1 Miss</button></div>
-      <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit1">Guild 2 Hit</button><button class="btn" id="miss1">Guild 2 Miss</button></div>
-      <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit2">Guild 3 Hit</button><button class="btn" id="miss2">Guild 3 Miss</button></div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="btnReset">Reset</button><button class="btn" id="btnUndo">Undo</button></div>
     </div>
   </div>
 
