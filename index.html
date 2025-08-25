@@ -265,9 +265,25 @@
 
     // Listen for control messages written by the teacher UI
     const controlsRef = ref(db, 'controls/latest');
-  onValue(controlsRef, snap => {
+    // last processed control id / timestamp to avoid duplicate processing
+    let _lastControlId = null;
+    let _lastControlTs = 0;
+    // flag to indicate we're applying a remote control to avoid re-broadcasting
+    let _processingRemoteControl = false;
+    onValue(controlsRef, snap => {
       const msg = snap.val();
       if(!msg) return;
+      // dedupe: ignore if we've already processed this id or this message is older than last
+      try{
+        if(msg.id && msg.id === _lastControlId) return;
+        if(msg.ts && typeof msg.ts === 'number' && msg.ts <= _lastControlTs) return;
+      }catch(e){ /* noop */ }
+      // ignore messages we just sent from this client
+      try{ if(window._localLastSentControlId && msg.id === window._localLastSentControlId) return; }catch(e){}
+      // record as processed
+      if(msg.id) _lastControlId = msg.id;
+      if(msg.ts && typeof msg.ts === 'number') _lastControlTs = msg.ts;
+  _processingRemoteControl = true; try{ window._processingRemoteControl = true; }catch(e){}
       // Map incoming actions to existing global functions in the page
       if(msg.action === 'hit') window.actHit && window.actHit(msg.payload?.g);
       else if(msg.action === 'miss') window.actMiss && window.actMiss(msg.payload?.g);
@@ -290,12 +306,20 @@
         localStorage.setItem('bossfight_settings', JSON.stringify({ bossName: state.bossName, bossHPMax: state.bossHPMax, imgs: state.imgs, bossSubject: state.bossSubject, bossNameLocked: state.bossNameLocked, bgName: state.bgName, guilds: state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})) }));
         resetFight(); logLine('Remote config applied: fight reset to apply new settings.');
       }
+  // done processing remote
+  _processingRemoteControl = false; try{ window._processingRemoteControl = false; }catch(e){}
     });
 
     // Helpers exposed to the global page
     window.firebaseSendControl = async function(action, payload = {}){
-      const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
-      await set(controlsRef, { id, action, payload, ts: Date.now() });
+      try{
+        // don't broadcast local actions while we're applying a remote control
+        if(typeof _processingRemoteControl !== 'undefined' && _processingRemoteControl) return;
+        const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+        // record locally so we can ignore the same message when it comes back through the DB
+        try{ window._localLastSentControlId = id; }catch(e){}
+        await set(controlsRef, { id, action, payload, ts: Date.now() });
+      }catch(e){ console.error('firebase send control failed', e); }
     };
 
     window.firebaseSignInTeacher = async function(email, password){
@@ -558,7 +582,7 @@
     // ===== Actions =====
     function actHit(gIndex){
       if(state.bossHP<=0) return; // already defeated
-      const g = state.guilds[gIndex];
+  const g = state.guilds[gIndex];
       const prev = snapshot();
       state.bossHP = clamp(state.bossHP-1, 0, state.bossHPMax);
       g.hits += 1; state.lastHit = gIndex;
@@ -568,11 +592,13 @@
       // show hit briefly then revert to base
       if(state.bossHP===0) onVictory();
       else showTempImage('hit', 1400, true);
+  // broadcast this action so mobile controllers stay in sync (unless this was a remote action)
+  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('hit', { g: gIndex });
     }
 
     function actMiss(gIndex){
       const g = state.guilds[gIndex];
-      if(g.hp<=0) { logLine(`${g.name} is already KO'd. No further penalty.`); return; }
+  if(g.hp<=0) { logLine(`${g.name} is already KO'd. No further penalty.`); return; }
       const prev = snapshot();
       g.hp = clamp(g.hp-1, 0, g.hpMax);
       renderGuilds(); renderBoss('attack', true); playSFX('miss');
@@ -581,6 +607,7 @@
   // show attack briefly then revert
   if(state.guilds.every(x=> x.hp<=0)) onDefeat();
   else showTempImage('attack', 1200, true);
+  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('miss', { g: gIndex });
     }
 
     function onVictory(){
@@ -609,12 +636,14 @@
   // clear transient image timer and show base
   if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
   renderHP(); renderGuilds(); renderBoss('base');
+  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('undo', {});
     }
 
     function resetFight(){
       state.bossHP = state.bossHPMax; state.guilds.forEach(g=>{ g.hp = g.hpMax; g.hits=0; }); state.lastHit=null; state.history=[];
   if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
   renderHP(); renderGuilds(); renderBoss('base'); $('#victory').classList.remove('show'); logLine('Fight reset.');
+  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('reset', {});
     }
 
     function snapshot(){
