@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
 
@@ -19,19 +19,12 @@ jobs:
       - name: Prepare artifact directory
         run: |
           mkdir out
-          # copy everything except .git (and optionally large folders)
           rsync -av --exclude='.git' --exclude='.github/actions' --exclude='node_modules' ./ out/
 
-      - name: Configure GitHub Pages
-        # configure-pages@v3 is the current recommended action for Pages setup
-        uses: actions/configure-pages@v3
-
-      - name: Upload artifact for GitHub Pages
-        # upload-pages-artifact@v1 is the Pages-specific upload action (not the deprecated upload-artifact)
-        uses: actions/upload-pages-artifact@v1
+      - name: Publish to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: ./out
-
-      - name: Deploy to GitHub Pages
-        # deploy-pages@v1 performs the final Pages deployment
-        uses: actions/deploy-pages@v1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
+          # keep history minimal
+          publish_branch: gh-pages
