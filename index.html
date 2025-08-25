@@ -22,7 +22,8 @@
       --shadow:0 10px 30px rgba(0,0,0,.35);
       --rounded:18px;
     }
-    html,body{height:100%; margin:0; background:radial-gradient(1000px 600px at 20% 0%, #151737 0%, var(--bg) 60%); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:radial-gradient(1000px 600px at 20% 0%, #151737 0%, var(--bg) 60%); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
     button,input,select{font:inherit}
     .wrap{display:grid; grid-template-rows:auto 1fr auto; min-height:100%;}
     header{display:flex; align-items:center; gap:16px; padding:16px 20px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0));}
@@ -81,7 +82,7 @@
     .btn.full{grid-column:1/-1}
 
     /* config modal */
-    dialog{border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--ink); width:min(940px, 95vw)}
+  dialog{border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--ink); width:min(940px, 95vw); max-width:95vw}
     dialog::backdrop{background:rgba(0,0,0,.5)}
     .cfg{display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:16px}
     .cfg section{background:var(--panel-2); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
@@ -110,6 +111,14 @@
     /* responsive */
     @media (max-width: 980px){
       .stage{grid-template-columns:1fr}
+    }
+    /* Make dialog and config form usable on small screens */
+    @media (max-width: 640px){
+      dialog{ width: calc(100vw - 18px); height: calc(100vh - 20px); max-height: calc(100vh - 20px); border-radius:10px }
+      .cfg{ grid-template-columns: 1fr; gap:12px; padding:12px; overflow:auto; max-height: calc(100vh - 160px) }
+      .cfg .actions{ position:sticky; bottom:8px; background:transparent; padding-top:8px }
+      .row{ grid-template-columns: 120px 1fr }
+      dialog::backdrop{ background: rgba(0,0,0,0.65) }
     }
   /* Teacher Dock (visible panel) styling - scoped to avoid changing original off-screen dock rules */
   .panel#dock{padding:12px; display:flex; flex-direction:column; gap:12px}
@@ -265,6 +274,8 @@
 
     // Listen for control messages written by the teacher UI
     const controlsRef = ref(db, 'controls/latest');
+  // small in-memory cache of processed control ids to avoid accidental double-processing
+  const _processedControlIds = new Set();
     // last processed control id / timestamp to avoid duplicate processing
     let _lastControlId = null;
     let _lastControlTs = 0;
@@ -273,6 +284,9 @@
     onValue(controlsRef, snap => {
       const msg = snap.val();
       if(!msg) return;
+      // ignore if we've recently processed this exact control id
+      try{ if(msg.id && _processedControlIds.has(msg.id)) { console.log('[DEBUG] controls:onValue ignoring already-processed id', msg.id); return; } }catch(e){}
+      console.log('[DEBUG] controls:onValue recv', { id: msg.id, action: msg.action, ts: msg.ts, localLastSent: window._localLastSentControlId, lastControlId: _lastControlId, processing: _processingRemoteControl });
       // dedupe: ignore if we've already processed this id or this message is older than last
       try{
         if(msg.id && msg.id === _lastControlId) return;
@@ -280,8 +294,8 @@
       }catch(e){ /* noop */ }
       // ignore messages we just sent from this client
       try{ if(window._localLastSentControlId && msg.id === window._localLastSentControlId) return; }catch(e){}
-      // record as processed
-      if(msg.id) _lastControlId = msg.id;
+  // record as processed
+  if(msg.id){ _lastControlId = msg.id; try{ _processedControlIds.add(msg.id); if(_processedControlIds.size>200) _processedControlIds.clear(); }catch(e){} }
       if(msg.ts && typeof msg.ts === 'number') _lastControlTs = msg.ts;
   _processingRemoteControl = true; try{ window._processingRemoteControl = true; }catch(e){}
       // Map incoming actions to existing global functions in the page
@@ -308,7 +322,7 @@
       }
   // done processing remote
   _processingRemoteControl = false; try{ window._processingRemoteControl = false; }catch(e){}
-    });
+  });
 
     // Helpers exposed to the global page
     window.firebaseSendControl = async function(action, payload = {}){
@@ -318,7 +332,8 @@
         const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
         // record locally so we can ignore the same message when it comes back through the DB
         try{ window._localLastSentControlId = id; }catch(e){}
-        await set(controlsRef, { id, action, payload, ts: Date.now() });
+  console.log('[DEBUG] firebaseSendControl writing', { id, action, payload });
+  await set(controlsRef, { id, action, payload, ts: Date.now() });
       }catch(e){ console.error('firebase send control failed', e); }
     };
 
@@ -581,7 +596,8 @@
 
     // ===== Actions =====
     function actHit(gIndex){
-      if(state.bossHP<=0) return; // already defeated
+  if(state.bossHP<=0) return; // already defeated
+  console.log('[DEBUG] actHit called', { gIndex, processing: window._processingRemoteControl, localLastSent: window._localLastSentControlId, lastControlId: _lastControlId });
   const g = state.guilds[gIndex];
       const prev = snapshot();
       state.bossHP = clamp(state.bossHP-1, 0, state.bossHPMax);
@@ -593,7 +609,7 @@
       if(state.bossHP===0) onVictory();
       else showTempImage('hit', 1400, true);
   // broadcast this action so mobile controllers stay in sync (unless this was a remote action)
-  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('hit', { g: gIndex });
+  if(!window._processingRemoteControl && window.firebaseSendControl) { console.log('[DEBUG] actHit broadcasting to firebase'); window.firebaseSendControl('hit', { g: gIndex }); }
     }
 
     function actMiss(gIndex){
@@ -819,7 +835,7 @@
     // edgeTab/btnHideDock are removed in the new layout
 
     $('#btnConfig').addEventListener('click', openCfg);
-    $('#btnSaveCfg').addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); });
+  $('#btnSaveCfg').addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); try{ $('#cfgDlg').close(); }catch(e){} });
 
     $('#victoryClose').addEventListener('click', ()=> $('#victory').classList.remove('show'));
 
