@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher Dock — Mobile</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;background:#0f1222;color:#e8eaf6;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
+    .card{background:#171a2f;padding:14px;border-radius:12px;width:100%;max-width:420px}
+    input,button{font:inherit}
+    .gRow{display:flex;gap:8px}
+    .btn{padding:10px;border-radius:8px;border:none;background:#7c9cff;color:#061029;width:100%}
+  </style>
+</head>
+<body>
+  <h2>Teacher Dock</h2>
+  <div class="card">
+    <div style="margin-bottom:8px;color:#aab0d5;font-size:13px">Sign in as teacher</div>
+    <input id="email" placeholder="teacher@example.com" style="width:100%;padding:8px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:#0f1230;color:#e8eaf6" />
+    <input id="password" type="password" placeholder="password" style="width:100%;padding:8px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:#0f1230;color:#e8eaf6" />
+    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="btnSignIn">Sign In</button><button class="btn" id="btnSignOut">Sign Out</button></div>
+    <div style="height:8px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit0">Guild 1 Hit</button><button class="btn" id="miss0">Guild 1 Miss</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit1">Guild 2 Hit</button><button class="btn" id="miss1">Guild 2 Miss</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="hit2">Guild 3 Hit</button><button class="btn" id="miss2">Guild 3 Miss</button></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="btnReset">Reset</button><button class="btn" id="btnUndo">Undo</button></div>
+    <div id="status" style="margin-top:10px;color:#aab0d5;font-size:13px"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsTo0u0r4FaYgg8qg3PmU_FAHmJFWQ8WE",
+      authDomain: "classroom-boss-fight.firebaseapp.com",
+      projectId: "classroom-boss-fight",
+      storageBucket: "classroom-boss-fight.firebasestorage.app",
+      messagingSenderId: "44362539387",
+      appId: "1:44362539387:web:a248b5c667604e89f19dde",
+      databaseURL: "https://classroom-boss-fight-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    const controlsRef = ref(db, 'controls/latest');
+
+    function send(action, payload) {
+      const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+      return set(controlsRef, { id, action, payload, ts: Date.now() });
+    }
+
+    document.getElementById('btnSignIn').onclick = async ()=>{
+      const e = document.getElementById('email').value.trim();
+      const p = document.getElementById('password').value;
+      try{ const u = await signInWithEmailAndPassword(auth, e, p); document.getElementById('status').textContent = `Signed in ${u.user.email}`; }catch(err){ document.getElementById('status').textContent = 'Sign-in failed: '+err.message }
+    };
+    document.getElementById('btnSignOut').onclick = async ()=>{ await signOut(auth); document.getElementById('status').textContent = 'Signed out'; };
+
+    document.getElementById('hit0').onclick = ()=> send('hit', { g:0 }).then(()=>document.getElementById('status').textContent='Sent: guild 1 hit');
+    document.getElementById('hit1').onclick = ()=> send('hit', { g:1 }).then(()=>document.getElementById('status').textContent='Sent: guild 2 hit');
+    document.getElementById('hit2').onclick = ()=> send('hit', { g:2 }).then(()=>document.getElementById('status').textContent='Sent: guild 3 hit');
+    document.getElementById('miss0').onclick = ()=> send('miss', { g:0 }).then(()=>document.getElementById('status').textContent='Sent: guild 1 miss');
+    document.getElementById('miss1').onclick = ()=> send('miss', { g:1 }).then(()=>document.getElementById('status').textContent='Sent: guild 2 miss');
+    document.getElementById('miss2').onclick = ()=> send('miss', { g:2 }).then(()=>document.getElementById('status').textContent='Sent: guild 3 miss');
+    document.getElementById('btnReset').onclick = ()=> send('reset', {}).then(()=>document.getElementById('status').textContent='Sent: reset');
+    document.getElementById('btnUndo').onclick = ()=> send('undo', {}).then(()=>document.getElementById('status').textContent='Sent: undo');
+
+    onAuthStateChanged(auth, u=>{ if(u) document.getElementById('status').textContent = `Signed in ${u.email}`; else document.getElementById('status').textContent='Not signed in' });
+  </script>
+</body>
+</html>
