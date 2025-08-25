@@ -239,6 +239,52 @@
     </div>
   </div>
 
+  <script type="module">
+    // Firebase module (CDN) - realtime teacher controls
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+    // Firebase config (from user)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsTo0u0r4FaYgg8qg3PmU_FAHmJFWQ8WE",
+      authDomain: "classroom-boss-fight.firebaseapp.com",
+      projectId: "classroom-boss-fight",
+      storageBucket: "classroom-boss-fight.firebasestorage.app",
+      messagingSenderId: "44362539387",
+      appId: "1:44362539387:web:a248b5c667604e89f19dde",
+      // Assumption: Realtime Database URL follows the default naming convention. If your DB URL is different, update this value.
+      databaseURL: "https://classroom-boss-fight-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Listen for control messages written by the teacher UI
+    const controlsRef = ref(db, 'controls/latest');
+    onValue(controlsRef, snap => {
+      const msg = snap.val();
+      if(!msg) return;
+      // Map incoming actions to existing global functions in the page
+      if(msg.action === 'hit') window.actHit && window.actHit(msg.payload?.g);
+      else if(msg.action === 'miss') window.actMiss && window.actMiss(msg.payload?.g);
+      else if(msg.action === 'reset') window.resetFight && window.resetFight();
+      else if(msg.action === 'undo') window.undo && window.undo();
+    });
+
+    // Helpers exposed to the global page
+    window.firebaseSendControl = async function(action, payload = {}){
+      const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+      await set(controlsRef, { id, action, payload, ts: Date.now() });
+    };
+
+    window.firebaseSignInTeacher = async function(email, password){
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      return cred.user;
+    };
+  </script>
+
   <script>
     // ===== Utility helpers =====
     const $ = (sel, el=document) => el.querySelector(sel);
