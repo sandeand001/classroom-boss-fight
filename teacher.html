@@ -128,63 +128,59 @@
 
     const controlsRef = ref(db, 'controls/latest');
 
-    document.getElementById('btnSignIn').onclick = async ()=>{
-      const e = document.getElementById('email').value.trim();
-      const p = document.getElementById('password').value;
+    const signInBtn = document.getElementById('btnSignIn'); if(signInBtn) signInBtn.addEventListener('click', async ()=>{
+      const e = (document.getElementById('email')||{}).value || '';
+      const p = (document.getElementById('password')||{}).value || '';
       try{
-        const u = await signInWithEmailAndPassword(auth, e, p);
-        document.getElementById('status').textContent = `Signed in ${u.user.email}`;
+        const u = await signInWithEmailAndPassword(auth, e.trim(), p);
+        const statusEl = document.getElementById('status'); if(statusEl) statusEl.textContent = `Signed in ${u.user.email}`;
         // Show controls now that teacher is signed in
-        document.getElementById('controls').style.display = '';
-      }catch(err){ console.error('signIn error', err); document.getElementById('status').textContent = 'Sign-in failed: '+err.message }
-    };
+        const controlsEl = document.getElementById('controls'); if(controlsEl) controlsEl.style.display = '';
+      }catch(err){ console.error('signIn error', err); const statusEl = document.getElementById('status'); if(statusEl) statusEl.textContent = 'Sign-in failed: '+err.message }
+    });
 
     // Reset password flow - uses Firebase Auth to send a reset email to the teacher's email
-    document.getElementById('btnResetPassword').onclick = async ()=>{
-      const e = document.getElementById('email').value.trim();
-      if(!e){ document.getElementById('status').textContent = 'Enter your email address first'; return; }
+    const resetPwdBtn = document.getElementById('btnResetPassword'); if(resetPwdBtn) resetPwdBtn.addEventListener('click', async ()=>{
+      const e = (document.getElementById('email')||{}).value || '';
+      const statusEl = document.getElementById('status');
+      if(!e.trim()){ if(statusEl) statusEl.textContent = 'Enter your email address first'; return; }
       try{
-        await sendPasswordResetEmail(auth, e);
-        document.getElementById('status').textContent = 'Password reset email sent (check your inbox)';
-      }catch(err){ console.error('reset error', err); document.getElementById('status').textContent = 'Reset failed: '+err.message }
-    };
+        await sendPasswordResetEmail(auth, e.trim()); if(statusEl) statusEl.textContent = 'Password reset email sent (check your inbox)';
+      }catch(err){ console.error('reset error', err); if(statusEl) statusEl.textContent = 'Reset failed: '+err.message }
+    });
 
     function send(action, payload){
       const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+      try{ window._localLastSentControlId = id; }catch(e){}
       return set(controlsRef, { id, action, payload, ts: Date.now() });
     }
 
     // update UI on auth changes, but don't redirect — teacher stays on phone to send controls
     onAuthStateChanged(auth, u=>{
-      if(u){
-        document.getElementById('status').textContent = `Signed in ${u.email}`;
-        document.getElementById('controls').style.display = '';
-        document.getElementById('btnSignOut').style.display = '';
-      } else {
-        document.getElementById('status').textContent='Not signed in';
-        document.getElementById('controls').style.display = 'none';
-        document.getElementById('btnSignOut').style.display = 'none';
-      }
+      const statusEl = document.getElementById('status'); const controlsEl = document.getElementById('controls'); const signOutEl = document.getElementById('btnSignOut');
+      if(u){ if(statusEl) statusEl.textContent = `Signed in ${u.email}`; if(controlsEl) controlsEl.style.display = ''; if(signOutEl) signOutEl.style.display = ''; }
+      else { if(statusEl) statusEl.textContent='Not signed in'; if(controlsEl) controlsEl.style.display = 'none'; if(signOutEl) signOutEl.style.display = 'none'; }
     });
 
-    // wire control buttons to send DB messages and update status
-    document.getElementById('hit0').onclick = ()=> send('hit', { g:0 }).then(()=>document.getElementById('status').textContent='Sent: guild 1 hit');
-    document.getElementById('hit1').onclick = ()=> send('hit', { g:1 }).then(()=>document.getElementById('status').textContent='Sent: guild 2 hit');
-    document.getElementById('hit2').onclick = ()=> send('hit', { g:2 }).then(()=>document.getElementById('status').textContent='Sent: guild 3 hit');
-    document.getElementById('miss0').onclick = ()=> send('miss', { g:0 }).then(()=>document.getElementById('status').textContent='Sent: guild 1 miss');
-    document.getElementById('miss1').onclick = ()=> send('miss', { g:1 }).then(()=>document.getElementById('status').textContent='Sent: guild 2 miss');
-    document.getElementById('miss2').onclick = ()=> send('miss', { g:2 }).then(()=>document.getElementById('status').textContent='Sent: guild 3 miss');
-    document.getElementById('btnReset').onclick = ()=> send('reset', {}).then(()=>document.getElementById('status').textContent='Sent: reset');
-    document.getElementById('btnUndo').onclick = ()=> send('undo', {}).then(()=>document.getElementById('status').textContent='Sent: undo');
+    // wire control buttons to send DB messages and update status (defensive)
+    const safeSend = (act, payload, text)=>{ try{ send(act,payload).then(()=>{ const st = document.getElementById('status'); if(st) st.textContent = text; }).catch(e=>{ console.warn('send failed', e); }); }catch(e){ console.warn('safeSend error', e); } };
+    const hit0 = document.getElementById('hit0'); if(hit0) hit0.addEventListener('click', ()=> safeSend('hit',{g:0}, 'Sent: guild 1 hit'));
+    const hit1 = document.getElementById('hit1'); if(hit1) hit1.addEventListener('click', ()=> safeSend('hit',{g:1}, 'Sent: guild 2 hit'));
+    const hit2 = document.getElementById('hit2'); if(hit2) hit2.addEventListener('click', ()=> safeSend('hit',{g:2}, 'Sent: guild 3 hit'));
+    const miss0 = document.getElementById('miss0'); if(miss0) miss0.addEventListener('click', ()=> safeSend('miss',{g:0}, 'Sent: guild 1 miss'));
+    const miss1 = document.getElementById('miss1'); if(miss1) miss1.addEventListener('click', ()=> safeSend('miss',{g:1}, 'Sent: guild 2 miss'));
+    const miss2 = document.getElementById('miss2'); if(miss2) miss2.addEventListener('click', ()=> safeSend('miss',{g:2}, 'Sent: guild 3 miss'));
+    const resetBtn = document.getElementById('btnReset'); if(resetBtn) resetBtn.addEventListener('click', ()=> safeSend('reset',{}, 'Sent: reset'));
+    const undoBtn = document.getElementById('btnUndo'); if(undoBtn) undoBtn.addEventListener('click', ()=> safeSend('undo',{}, 'Sent: undo'));
 
-    document.getElementById('btnSignOut').onclick = async ()=>{ try{ await signOut(auth); document.getElementById('status').textContent='Signed out'; }catch(e){ console.warn(e); } };
+    const signOutBtn = document.getElementById('btnSignOut'); if(signOutBtn) signOutBtn.addEventListener('click', async ()=>{ try{ await signOut(auth); const st = document.getElementById('status'); if(st) st.textContent='Signed out'; }catch(e){ console.warn(e); } });
 
     // send mobile config (subject, bossHP)
-    document.getElementById('btnSendConfig').onclick = ()=>{
-      const subj = document.getElementById('cfgSubjectMobile').value;
-      const hp = parseInt(document.getElementById('cfgBossHPMobile').value,10) || 8;
-      send('config', { subject: subj, bossHP: Math.max(1, Math.min(20, hp)) }).then(()=>document.getElementById('status').textContent='Sent: config');
-    };
+    const btnSendConfig = document.getElementById('btnSendConfig'); if(btnSendConfig) btnSendConfig.addEventListener('click', ()=>{
+      const subj = (document.getElementById('cfgSubjectMobile')||{}).value || 'math';
+      const hp = parseInt((document.getElementById('cfgBossHPMobile')||{}).value,10) || 8;
+      safeSend('config', { subject: subj, bossHP: Math.max(1, Math.min(20, hp)) }, 'Sent: config');
+    });
   </script>
 </body>
 </html>

@@ -141,9 +141,9 @@
       <div class="chips">
         <span class="pill" id="qChip" hidden>Q: <strong id="qNum">1</strong></span>
         <span class="pill" id="timerChip" hidden>⏱ <strong id="timerText">00:00</strong></span>
-    <a class="btn" href="teacher.html" title="Open Teacher Dock (mobile)">👩‍🏫 Teacher</a>
-    <button class="btn" id="btnSignOut" style="display:none">Sign Out</button>
-    <button class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
+  <a class="btn" href="teacher.html" title="Open Teacher Dock (mobile)">👩‍🏫 Teacher</a>
+  <button type="button" class="btn" id="btnSignOut" style="display:none">Sign Out</button>
+  <button type="button" class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
       </div>
     </header>
 
@@ -172,10 +172,10 @@
           <div style="padding:8px 12px; color:var(--muted); font-size:12px">Click buttons here — students won't see this panel.</div>
           <div id="dockBtns"></div>
           <div class="gBtnRow">
-            <button class="btn full" id="btnUndo">↶ Undo (U)</button>
-            <button class="btn full" id="btnReset">Reset Fight (R)</button>
-            <button class="btn full" id="btnToggleQ">Toggle Question Chip (Q)</button>
-            <button class="btn full" id="btnToggleTimer">Start/Pause Timer (T)</button>
+            <button type="button" class="btn full" id="btnUndo">↶ Undo (U)</button>
+            <button type="button" class="btn full" id="btnReset">Reset Fight (R)</button>
+            <button type="button" class="btn full" id="btnToggleQ">Toggle Question Chip (Q)</button>
+            <button type="button" class="btn full" id="btnToggleTimer">Start/Pause Timer (T)</button>
           </div>
         </div>
       </aside>
@@ -235,8 +235,8 @@
       </section>
 
       <div class="actions">
-        <button class="btn" value="cancel">Cancel</button>
-        <button class="btn" id="btnSaveCfg" value="default">Save</button>
+        <button type="button" class="btn" value="cancel">Cancel</button>
+        <button type="button" class="btn" id="btnSaveCfg" value="default">Save</button>
       </div>
     </form>
   </dialog>
@@ -246,114 +246,86 @@
     <div class="bannerCard">
       <h2 id="victoryTitle">Boss Defeated!</h2>
       <p id="victorySub">Final blow by <b>Guild</b>. Top contributor: <b>Guild</b>.</p>
-      <div style="margin-top:14px"><button class="btn" id="victoryClose">Close</button></div>
+  <div style="margin-top:14px"><button type="button" class="btn" id="victoryClose">Close</button></div>
     </div>
   </div>
 
-  <script type="module">
-    // Firebase module (CDN) - realtime teacher controls
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-
-    // Firebase config (from user)
-    const firebaseConfig = {
-      apiKey: "AIzaSyBsTo0u0r4FaYgg8qg3PmU_FAHmJFWQ8WE",
-      authDomain: "classroom-boss-fight.firebaseapp.com",
-      projectId: "classroom-boss-fight",
-      storageBucket: "classroom-boss-fight.firebasestorage.app",
-      messagingSenderId: "44362539387",
-      appId: "1:44362539387:web:a248b5c667604e89f19dde",
-      // Assumption: Realtime Database URL follows the default naming convention. If your DB URL is different, update this value.
-      databaseURL: "https://classroom-boss-fight-default-rtdb.firebaseio.com"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-
-    // Listen for control messages written by the teacher UI
-    const controlsRef = ref(db, 'controls/latest');
-  // small in-memory cache of processed control ids to avoid accidental double-processing
-  const _processedControlIds = new Set();
-    // last processed control id / timestamp to avoid duplicate processing
-    let _lastControlId = null;
-    let _lastControlTs = 0;
-    // flag to indicate we're applying a remote control to avoid re-broadcasting
-    let _processingRemoteControl = false;
-    onValue(controlsRef, snap => {
-      const msg = snap.val();
-      if(!msg) return;
-      // ignore if we've recently processed this exact control id
-      try{ if(msg.id && _processedControlIds.has(msg.id)) { console.log('[DEBUG] controls:onValue ignoring already-processed id', msg.id); return; } }catch(e){}
-      console.log('[DEBUG] controls:onValue recv', { id: msg.id, action: msg.action, ts: msg.ts, localLastSent: window._localLastSentControlId, lastControlId: _lastControlId, processing: _processingRemoteControl });
-      // dedupe: ignore if we've already processed this id or this message is older than last
+  <script>
+    // Load Firebase modules dynamically and gracefully degrade if unavailable.
+    (async function(){
       try{
-        if(msg.id && msg.id === _lastControlId) return;
-        if(msg.ts && typeof msg.ts === 'number' && msg.ts <= _lastControlTs) return;
-      }catch(e){ /* noop */ }
-      // ignore messages we just sent from this client
-      try{ if(window._localLastSentControlId && msg.id === window._localLastSentControlId) return; }catch(e){}
-  // record as processed
-  if(msg.id){ _lastControlId = msg.id; try{ _processedControlIds.add(msg.id); if(_processedControlIds.size>200) _processedControlIds.clear(); }catch(e){} }
-      if(msg.ts && typeof msg.ts === 'number') _lastControlTs = msg.ts;
-  _processingRemoteControl = true; try{ window._processingRemoteControl = true; }catch(e){}
-      // Map incoming actions to existing global functions in the page
-      if(msg.action === 'hit') window.actHit && window.actHit(msg.payload?.g);
-      else if(msg.action === 'miss') window.actMiss && window.actMiss(msg.payload?.g);
-      else if(msg.action === 'reset') window.resetFight && window.resetFight();
-      else if(msg.action === 'undo') window.undo && window.undo();
-      else if(msg.action === 'config'){
-        const p = msg.payload || {};
-        // apply subject/HP/background if present
-        if(p.subject) {
-          setSubjectImages(p.subject);
-          // persist
-          state.bossSubject = p.subject;
-        }
-        if(typeof p.bossHP === 'number'){
-          state.bossHPMax = clamp(p.bossHP, 1, 20);
-          state.bossHP = Math.min(state.bossHP, state.bossHPMax);
-        }
-        if(p.background) applyBackground(p.background);
-        // save config and reset fight so new settings take effect
-        localStorage.setItem('bossfight_settings', JSON.stringify({ bossName: state.bossName, bossHPMax: state.bossHPMax, imgs: state.imgs, bossSubject: state.bossSubject, bossNameLocked: state.bossNameLocked, bgName: state.bgName, guilds: state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})) }));
-        resetFight(); logLine('Remote config applied: fight reset to apply new settings.');
+        const modApp = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js');
+        const modDb = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js');
+        const modAuth = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js');
+        const { initializeApp } = modApp;
+        const { getDatabase, ref, onValue, set } = modDb;
+        const { getAuth, signInWithEmailAndPassword, onAuthStateChanged } = modAuth;
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyBsTo0u0r4FaYgg8qg3PmU_FAHmJFWQ8WE",
+          authDomain: "classroom-boss-fight.firebaseapp.com",
+          projectId: "classroom-boss-fight",
+          storageBucket: "classroom-boss-fight.firebasestorage.app",
+          messagingSenderId: "44362539387",
+          appId: "1:44362539387:web:a248b5c667604e89f19dde",
+          databaseURL: "https://classroom-boss-fight-default-rtdb.firebaseio.com"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        const controlsRef = ref(db, 'controls/latest');
+        const _processedControlIds = new Set();
+        let _lastControlId = null; let _lastControlTs = 0; let _processingRemoteControl = false;
+        try{ window._processingRemoteControl = false; }catch(e){}
+
+        onValue(controlsRef, snap => {
+          try{
+            const msg = snap.val(); if(!msg) return;
+            try{ if(msg.id && _processedControlIds.has(msg.id)) return; }catch(e){}
+            try{ if(msg.id && msg.id === _lastControlId) return; if(msg.ts && typeof msg.ts === 'number' && msg.ts <= _lastControlTs) return; }catch(e){}
+            try{ if(window._localLastSentControlId && msg.id === window._localLastSentControlId) return; }catch(e){}
+            if(msg.id){ _lastControlId = msg.id; try{ _processedControlIds.add(msg.id); if(_processedControlIds.size>200) _processedControlIds.clear(); }catch(e){} }
+            if(msg.ts && typeof msg.ts === 'number') _lastControlTs = msg.ts;
+            _processingRemoteControl = true; try{ window._processingRemoteControl = true; }catch(e){}
+            if(msg.action === 'hit'){ if(window.actHit) window.actHit(msg.payload && msg.payload.g); }
+            else if(msg.action === 'miss'){ if(window.actMiss) window.actMiss(msg.payload && msg.payload.g); }
+            else if(msg.action === 'reset'){ if(window.resetFight) window.resetFight(); }
+            else if(msg.action === 'undo'){ if(window.undo) window.undo(); }
+            else if(msg.action === 'config'){
+              const p = msg.payload || {};
+              if(p.subject) { if(window.setSubjectImages) window.setSubjectImages(p.subject); try{ if(window.state) window.state.bossSubject = p.subject; }catch(e){} }
+              if(typeof p.bossHP === 'number'){ try{ if(window.state){ window.state.bossHPMax = clamp(p.bossHP, 1, 20); window.state.bossHP = Math.min(window.state.bossHP||0, window.state.bossHPMax); } }catch(e){} }
+              if(p.background && window.applyBackground) window.applyBackground(p.background);
+              try{ if(window.state){ localStorage.setItem('bossfight_settings', JSON.stringify({ bossName: window.state.bossName, bossHPMax: window.state.bossHPMax, imgs: window.state.imgs, bossSubject: window.state.bossSubject, bossNameLocked: window.state.bossNameLocked, bgName: window.state.bgName, guilds: window.state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})) })); } }catch(e){}
+              if(window.resetFight) { window.resetFight(); if(window.logLine) window.logLine('Remote config applied: fight reset to apply new settings.'); }
+            }
+          }catch(e){ console.error('[DEBUG] controls:onValue handler error', e); }
+          finally{ _processingRemoteControl = false; try{ window._processingRemoteControl = false; }catch(e){} }
+        });
+
+        window.firebaseSendControl = async function(action, payload = {}){
+          try{
+            if(typeof _processingRemoteControl !== 'undefined' && _processingRemoteControl) return;
+            const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+            try{ window._localLastSentControlId = id; }catch(e){}
+            await set(controlsRef, { id, action, payload, ts: Date.now() });
+          }catch(e){ console.error('firebase send control failed', e); }
+        };
+
+        window.firebaseSignInTeacher = async function(email, password){ const cred = await signInWithEmailAndPassword(auth, email, password); return cred.user; };
+        window.firebaseSignOut = async function(){ try{ await auth.signOut(); try{ window.location.href = 'teacher.html'; }catch(e){} }catch(e){ console.warn('firebaseSignOut error', e); } };
+        onAuthStateChanged(auth, (u)=>{ window.firebaseUser = u || null; try{ window.dispatchEvent(new CustomEvent('firebase-auth-changed', { detail: u })); }catch(e){} });
+      }catch(e){
+        // If firebase cannot be loaded (offline or CDN blocked), provide safe no-op fallbacks so the rest of the page still functions.
+        console.warn('Firebase modules failed to load - realtime teacher controls disabled', e);
+        window.firebaseSendControl = async ()=>{};
+        window.firebaseSignInTeacher = async ()=>{ throw new Error('firebase unavailable'); };
+        window.firebaseSignOut = async ()=>{};
+        window.firebaseUser = null;
       }
-  // done processing remote
-  _processingRemoteControl = false; try{ window._processingRemoteControl = false; }catch(e){}
-  });
-
-    // Helpers exposed to the global page
-    window.firebaseSendControl = async function(action, payload = {}){
-      try{
-        // don't broadcast local actions while we're applying a remote control
-        if(typeof _processingRemoteControl !== 'undefined' && _processingRemoteControl) return;
-        const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
-        // record locally so we can ignore the same message when it comes back through the DB
-        try{ window._localLastSentControlId = id; }catch(e){}
-  console.log('[DEBUG] firebaseSendControl writing', { id, action, payload });
-  await set(controlsRef, { id, action, payload, ts: Date.now() });
-      }catch(e){ console.error('firebase send control failed', e); }
-    };
-
-    window.firebaseSignInTeacher = async function(email, password){
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      return cred.user;
-    };
-
-    // expose sign-out and auth state changes to the main script
-    window.firebaseSignOut = async function(){
-      try{ await auth.signOut();
-        try{ window.location.href = 'teacher.html'; }catch(e){}
-      }catch(e){ console.warn('firebaseSignOut error', e); }
-    };
-
-    onAuthStateChanged(auth, (u)=>{
-      // expose current user globally and dispatch an event that other scripts can listen for
-      window.firebaseUser = u || null;
-      try{ window.dispatchEvent(new CustomEvent('firebase-auth-changed', { detail: u })); }catch(e){}
-    });
+    })();
   </script>
 
   <script>
@@ -720,8 +692,14 @@
     }
 
     function toColorHex(any){
-      const ctx = document.createElement('canvas').getContext('2d');
-      ctx.fillStyle = any; return ctx.fillStyle; // normalized hex
+      try{
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext && canvas.getContext('2d');
+        if(!ctx) return '#ffffff';
+        ctx.fillStyle = any || '#ffffff';
+        // the canvas will normalize named colors / rgb() to hex string in ctx.fillStyle
+        return ctx.fillStyle;
+      }catch(e){ return '#ffffff'; }
     }
 
     function fileToDataURL(file){
@@ -834,34 +812,34 @@
     // ===== DOM wiring =====
     // edgeTab/btnHideDock are removed in the new layout
 
-    $('#btnConfig').addEventListener('click', openCfg);
-  $('#btnSaveCfg').addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); try{ $('#cfgDlg').close(); }catch(e){} });
+    const btnConfigEl = $('#btnConfig'); if(btnConfigEl) btnConfigEl.addEventListener('click', openCfg);
+  const btnSaveCfgEl = $('#btnSaveCfg'); if(btnSaveCfgEl) btnSaveCfgEl.addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); try{ $('#cfgDlg').close(); }catch(e){} });
 
-    $('#victoryClose').addEventListener('click', ()=> $('#victory').classList.remove('show'));
+    const victoryCloseEl = $('#victoryClose'); if(victoryCloseEl) victoryCloseEl.addEventListener('click', ()=> $('#victory').classList.remove('show'));
 
     // Dock buttons per guild
     function buildDock(){
-      const host = $('#dockBtns'); host.innerHTML='';
+      const host = $('#dockBtns'); if(!host) return; host.innerHTML='';
       state.guilds.forEach((g,idx)=>{
         const row = document.createElement('div'); row.className='gBtnRow';
         const hit = document.createElement('button'); hit.className='btn hit'; hit.textContent = `${g.name} HIT`;
-        hit.onclick = ()=>{
-          actHit(idx);
-          if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('hit', { g: idx });
-        };
+        hit.addEventListener('click', ()=>{
+          try{ actHit(idx); }catch(e){ console.error('hit handler error', e); }
+          try{ if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('hit', { g: idx }); }catch(e){}
+        });
         const miss = document.createElement('button'); miss.className='btn miss'; miss.textContent = `${g.name} MISS`;
-        miss.onclick = ()=>{
-          actMiss(idx);
-          if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('miss', { g: idx });
-        };
+        miss.addEventListener('click', ()=>{
+          try{ actMiss(idx); }catch(e){ console.error('miss handler error', e); }
+          try{ if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('miss', { g: idx }); }catch(e){}
+        });
         row.appendChild(hit); row.appendChild(miss); host.appendChild(row);
       });
     }
 
-    $('#btnUndo').addEventListener('click', undo);
-    $('#btnReset').addEventListener('click', resetFight);
-    $('#btnToggleQ').addEventListener('click', ()=> $('#qChip').hidden = !$('#qChip').hidden);
-    $('#btnToggleTimer').addEventListener('click', startPauseTimer);
+  const btnUndoEl = $('#btnUndo'); if(btnUndoEl) btnUndoEl.addEventListener('click', undo);
+  const btnResetEl = $('#btnReset'); if(btnResetEl) btnResetEl.addEventListener('click', resetFight);
+  const btnToggleQEl = $('#btnToggleQ'); if(btnToggleQEl) btnToggleQEl.addEventListener('click', ()=> $('#qChip').hidden = !$('#qChip').hidden);
+  const btnToggleTimerEl = $('#btnToggleTimer'); if(btnToggleTimerEl) btnToggleTimerEl.addEventListener('click', startPauseTimer);
 
     // when editing config, if the subject select changes and the name isn't locked, update the boss name field
     const subjEl = $('#cfgSubject');
