@@ -1,882 +1,112 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Class Bossfight — Review Mode</title>
-  <style>
-    :root{
-      --bg:#0f1222;                /* deep indigo */
-      --panel:#171a2f;
-      --panel-2:#1f2340;
-      --ink:#e8eaf6;               /* off-white */
-      --muted:#aab0d5;
-      --accent:#7c9cff;            /* soft blue */
-      --danger:#ff6b6b;            /* coral red */
-      --success:#31d0aa;           /* teal */
-
-      --guild1:#f2d35b;            /* yellow */
-      --guild2:#5bb2ff;            /* blue */
-      --guild3:#b679ff;            /* purple */
-
-      --shadow:0 10px 30px rgba(0,0,0,.35);
-      --rounded:18px;
-    }
-  *,*::before,*::after{box-sizing:border-box}
-  html,body{height:100%; margin:0; background:radial-gradient(1000px 600px at 20% 0%, #151737 0%, var(--bg) 60%); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
-    button,input,select{font:inherit}
-    .wrap{display:grid; grid-template-rows:auto 1fr auto; min-height:100%;}
-    header{display:flex; align-items:center; gap:16px; padding:16px 20px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0));}
-    header h1{font-size:20px; margin:0; letter-spacing:.3px; opacity:.95}
-    header .sp{flex:1}
-    header .chip{background:var(--panel-2); border:1px solid rgba(255,255,255,.07); padding:6px 10px; border-radius:999px; font-size:13px; color:var(--muted)}
-
-    /* Boss stage */
-    .stage{display:grid; grid-template-columns: 1fr 420px; gap:22px; padding:10px 20px 20px;}
-    .bossPane{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,.15)); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow); display:grid; grid-template-rows:auto 1fr}
-    .bossHeader{display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 16px;}
-    .bossName{font-size:22px; letter-spacing:.5px}
-    .hp{display:flex; gap:6px; align-items:center;}
-    .heart{width:22px; height:22px; border-radius:4px; background:linear-gradient(180deg,#ef6b88,#b93852); box-shadow:inset 0 -2px 0 rgba(0,0,0,.2); transform:skew(-6deg);}
-    .heart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
-
-    .bossView{position:relative; overflow:hidden; border-top:1px solid rgba(255,255,255,.05);}
-    .bossImg{position:absolute; inset:0; display:grid; place-items:center;}
-    .bossImg img{max-width:85%; max-height:85%; filter:drop-shadow(0 30px 40px rgba(0,0,0,.35)); transition:transform .18s ease, opacity .18s ease}
-    .shake{animation:shake .35s ease}
-    @keyframes shake{10%{transform:translateX(-10px)} 20%{transform:translateX(12px)} 35%{transform:translateX(-8px)} 55%{transform:translateX(6px)} 75%{transform:translateX(-4px)} 100%{transform:none}}
-
-    .flashHit{position:absolute; inset:0; pointer-events:none; background:radial-gradient(400px 260px at 50% 50%, rgba(255,255,255,.22), rgba(255,255,255,0)); opacity:0;}
-    .flashHit.show{animation:flash .3s ease}
-    @keyframes flash{0%{opacity:.9}100%{opacity:0}}
-
-    /* Right panel — guilds */
-    .side{display:grid; gap:16px}
-    .panel{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow);}
-    .panel h3{margin:12px 16px; font-size:16px; color:var(--muted); font-weight:600}
-
-    .guilds{display:grid; gap:12px; padding:0 14px 16px}
-    .guild{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.08)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 12px; display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center}
-    .gHead{display:flex; align-items:center; gap:10px}
-    .dot{width:12px; height:12px; border-radius:50%}
-    .gName{font-weight:700; letter-spacing:.3px}
-    .gHearts{display:flex; gap:5px}
-    .gHeart{width:16px; height:16px; border-radius:3px; background:linear-gradient(180deg,#6ae6ca,#1a9f85)}
-    .gHeart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
-    .gStats{grid-column:1/-1; font-size:12px; color:var(--muted)}
-
-    .log{max-height:160px; overflow:auto; padding:0 16px 12px}
-    .logItem{font-size:12px; color:var(--muted)}
-
-    /* controls dock (off-screen, slides in on edge hover or hotkey) */
-    .edgeTab{position:fixed; right:0; top:0; width:3px; height:100vh; z-index:60}
-    .dock{position:fixed; top:0; right:-260px; width:260px; height:100vh; background:rgba(16,19,42,.98); border-left:1px solid rgba(255,255,255,.08); box-shadow: -8px 0 30px rgba(0,0,0,.3); transition:right .18s ease; z-index:70; display:flex; flex-direction:column}
-    .dock.show{right:0}
-    .dock header{padding:12px 12px 6px; display:flex; gap:8px; align-items:center}
-    .dock h4{margin:0; font-size:14px; color:var(--muted)}
-    .dock .gBtnRow{display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px 12px}
-    .btn{padding:10px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.1)); color:var(--ink); cursor:pointer}
-    .btn:hover{filter:brightness(1.15)}
-    .btn.hit{border-color:rgba(49,208,170,.5)}
-    .btn.miss{border-color:rgba(255,107,107,.5)}
-    .btn.full{grid-column:1/-1}
-
-    /* config modal */
-  dialog{border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--ink); width:min(940px, 95vw); max-width:95vw}
-    dialog::backdrop{background:rgba(0,0,0,.5)}
-    .cfg{display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:16px}
-    .cfg section{background:var(--panel-2); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
-    .cfg h4{margin:0 0 8px 0; font-size:14px; color:var(--muted)}
-    .row{display:grid; grid-template-columns: 140px 1fr; align-items:center; gap:8px; margin:6px 0}
-    .row label{font-size:13px; color:var(--muted)}
-    .row input[type="text"], .row input[type="number"], .row select{background:#15183a; color:var(--ink); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px}
-    .row input[type="color"]{width:42px; height:30px; border:none; background:transparent}
-    .cfg .actions{grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; padding:8px 12px}
-
-    /* timer & question chip */
-    .chips{display:flex; gap:10px; align-items:center}
-    .pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:6px 10px; font-size:13px; color:var(--muted)}
-    .pill strong{color:var(--ink)}
-
-  /* top notification banner (doesn't cover main boss image) */
-  .banner{position:fixed; top:10px; left:0; right:0; display:none; justify-content:center; z-index:90; pointer-events:none}
-  .banner.show{display:flex}
-  .bannerCard{pointer-events:auto; background:var(--panel-2); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px 18px; min-width:min(420px,90vw); text-align:center; box-shadow:var(--shadow)}
-    .bannerCard h2{margin:0 0 10px 0}
-    .bannerCard p{margin:8px 0; color:var(--muted)}
-
-    /* mini help */
-    .help{font-size:12px; color:var(--muted)}
-
-    /* responsive */
-    @media (max-width: 980px){
-      .stage{grid-template-columns:1fr}
-    }
-    /* Make dialog and config form usable on small screens */
-    @media (max-width: 640px){
-      dialog{ width: calc(100vw - 18px); height: calc(100vh - 20px); max-height: calc(100vh - 20px); border-radius:10px }
-      .cfg{ grid-template-columns: 1fr; gap:12px; padding:12px; overflow:auto; max-height: calc(100vh - 160px) }
-      .cfg .actions{ position:sticky; bottom:8px; background:transparent; padding-top:8px }
-      .row{ grid-template-columns: 120px 1fr }
-      dialog::backdrop{ background: rgba(0,0,0,0.65) }
-    }
-  /* Teacher Dock (visible panel) styling - scoped to avoid changing original off-screen dock rules */
-  .panel#dock{padding:12px; display:flex; flex-direction:column; gap:12px}
-  .panel#dock h3{margin:0; font-size:16px; color:var(--muted)}
-  #dockBtns{display:flex; flex-direction:column; gap:10px}
-  #dockBtns .gBtnRow{display:flex; gap:8px}
-  #dockBtns .gBtnRow .btn{flex:1}
-  .panel#dock .gBtnRow{margin-top:6px}
-  /* subject-specific tweaks */
-  body[data-subject="phonics"] .bossImg{ transform: translateY(-12%); }
-  body[data-subject="phonics"] .bossImg img{ max-height:75%; }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Classroom Boss Fight — SPA</title>
+  <link rel="stylesheet" href="styles/styles.css">
+  <meta name="description" content="Lightweight SPA with Firebase Auth (Google + Email) and realtime teacher controls" />
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Bossfight — Review Mode</h1>
-      <span class="chip">Press <b>.</b> to toggle Teacher Dock · <b>1/2/3</b> = Hit · <b>Alt+1/2/3</b> = Miss</span>
-      <span class="sp"></span>
-      <div class="chips">
-        <span class="pill" id="qChip" hidden>Q: <strong id="qNum">1</strong></span>
-        <span class="pill" id="timerChip" hidden>⏱ <strong id="timerText">00:00</strong></span>
-  <a class="btn" href="teacher.html" title="Open Teacher Dock (mobile)">👩‍🏫 Teacher</a>
-  <button type="button" class="btn" id="btnSignOut" style="display:none">Sign Out</button>
-  <button type="button" class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
-      </div>
-    </header>
+  <header class="site-header">
+    <div class="brand">Classroom Boss Fight</div>
+    <nav aria-label="Main">
+      <a href="#/login" id="nav-login" class="nav-link">Login</a>
+      <a href="#/app" id="nav-app" class="nav-link">App</a>
+      <a href="#/profile" id="nav-profile" class="nav-link">Profile</a>
+      <a href="#/teacher" id="nav-teacher" class="nav-link">Teacher Dock</a>
+    </nav>
+    <div class="sp"></div>
+    <div class="header-controls">
+      <button type="button" id="btnConfig" class="btn small" title="Configure (G)">⚙️</button>
+      <button type="button" id="btnSignOut" class="btn small" style="display:none">Sign Out</button>
+    </div>
+  </header>
 
-    <main class="stage">
-      <section class="bossPane">
-        <div class="bossHeader">
-          <div class="hp" id="bossHP"></div>
-          <div class="bossName" id="bossName">Ancient Drake</div>
-        </div>
-        <div class="bossView">
-          <div class="bossImg">
-            <img id="bossImg" alt="Boss"/>
-            <div class="flashHit" id="flash"></div>
-          </div>
-        </div>
-      </section>
+  <main id="root" class="root" role="main" tabindex="0">
+    <!-- content rendered by JS -->
+  </main>
 
-      <aside class="side">
-        <div class="panel">
-          <h3>Guilds</h3>
-          <div class="guilds" id="guildList"></div>
-        </div>
-        <!-- Teacher Dock (visible panel) -->
-        <div class="panel" id="dock">
-          <h3>Teacher Dock</h3>
-          <div style="padding:8px 12px; color:var(--muted); font-size:12px">Click buttons here — students won't see this panel.</div>
-          <div id="dockBtns"></div>
-          <div class="gBtnRow">
-            <button type="button" class="btn full" id="btnUndo">↶ Undo (U)</button>
-            <button type="button" class="btn full" id="btnReset">Reset Fight (R)</button>
-            <button type="button" class="btn full" id="btnToggleQ">Toggle Question Chip (Q)</button>
-            <button type="button" class="btn full" id="btnToggleTimer">Start/Pause Timer (T)</button>
-          </div>
-        </div>
-      </aside>
-    </main>
+  <footer class="site-footer">
+    <small>Works with GitHub Pages (hash routing) • Mobile teacher controls sync via Firebase Realtime Database</small>
+  </footer>
 
-    <footer style="padding:10px 16px; color:var(--muted); display:flex; align-items:center; gap:10px">
-  <span class="help">Hidden controls: <b>1/2/3</b> Hit · <b>Alt+1/2/3</b> Miss · <b>U</b> Undo · <b>R</b> Reset · <b>G</b> Config (choose subject pack) · <b>T</b> Timer · <b>Q</b> Toggle question chip</span>
-      <span class="sp"></span>
-      <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
-        <input type="checkbox" id="muteToggle"/> Mute SFX
-      </label>
-    </footer>
-  </div>
+  <!-- App scripts: Firebase init must be loaded before auth/app modules use it. Keep minimal and deferred. -->
+  <script type="module" src="js/firebase-init.js" defer></script>
+  <script type="module" src="js/auth.js" defer></script>
+  <script type="module" src="js/router.js" defer></script>
+  <script type="module" src="js/app.js" defer></script>
 
-  <!-- Event Log moved here (hidden by default) -->
-  <div class="panel" id="logPanel" style="display:none">
-    <h3>Event Log</h3>
-    <div class="log" id="log"></div>
-  </div>
-
-  <!-- Config Modal -->
-  <dialog id="cfgDlg">
-    <form method="dialog" class="cfg" id="cfgForm">
-      <section>
-        <h4>Boss Settings</h4>
-        <div class="row"><label>Boss Name</label><input type="text" id="cfgBossName" value="Ancient Drake"></div>
-        <div class="row"><label>Boss Hearts</label>
-          <span>
-            <input type="number" id="cfgBossHP" min="1" max="20" value="8">
-            <small style="color:var(--muted); margin-left:6px">Enter 1–20. You can change mid-fight.</small>
-          </span>
-        </div>
-        <div class="row"><label>Image Pack</label>
-          <div style="display:grid; gap:8px">
+  <!-- UI fragments: static DOM pieces used by app.js (kept markup-only; logic lives in modules) -->
+  <div id="ui-fragments" hidden>
+    <!-- Config dialog -->
+    <dialog id="cfgDlg">
+      <form method="dialog" class="cfg" id="cfgForm">
+        <section>
+          <h4>Boss Settings</h4>
+          <div class="row"><label>Boss Name</label><input type="text" id="cfgBossName" value="Ancient Drake"></div>
+          <div class="row"><label>Boss Hearts</label><input type="number" id="cfgBossHP" min="1" max="20" value="8"></div>
+          <div class="row"><label>Image Pack</label>
             <select id="cfgSubject">
               <option value="math">Math</option>
               <option value="phonics">Phonics</option>
               <option value="story-comprehension">Story Comprehension</option>
             </select>
-            
           </div>
-        </div>
-        <div class="row"><label>Background</label>
-          <div style="display:grid; gap:8px">
-            <select id="cfgBackground">
-              <option value="__default__">Default</option>
-            </select>
-            
+          <div class="row"><label>Background</label>
+            <select id="cfgBackground"><option value="__default__">Default</option></select>
           </div>
+        </section>
+        <section>
+          <h4>Guilds & Audio</h4>
+          <div id="guildCfg"></div>
+          <div class="row"><label>SFX Hit</label><input id="sfxHit" type="file" accept="audio/*"></div>
+          <div class="row"><label>SFX Miss</label><input id="sfxMiss" type="file" accept="audio/*"></div>
+          <div class="row"><label>SFX Win</label><input id="sfxWin" type="file" accept="audio/*"></div>
+        </section>
+        <div class="actions">
+          <button type="button" class="btn" id="btnSaveCfg">Save</button>
+          <button type="button" class="btn" id="btnCancelCfg">Cancel</button>
         </div>
-      </section>
+      </form>
+    </dialog>
 
-      <section>
-        <h4>Guilds & Audio</h4>
-        <div id="guildCfg"></div>
-        
-      </section>
-
-      <div class="actions">
-        <button type="button" class="btn" value="cancel">Cancel</button>
-        <button type="button" class="btn" id="btnSaveCfg" value="default">Save</button>
+    <!-- Victory banner -->
+    <div class="banner" id="victory" hidden>
+      <div class="bannerCard">
+        <h2 id="victoryTitle">Boss Defeated!</h2>
+        <p id="victorySub">Final blow by <b>Guild</b>. Top contributor: <b>Guild</b>.</p>
+        <div style="margin-top:14px"><button type="button" class="btn" id="victoryClose">Close</button></div>
       </div>
-    </form>
-  </dialog>
-
-  <!-- Victory Banner -->
-  <div class="banner" id="victory">
-    <div class="bannerCard">
-      <h2 id="victoryTitle">Boss Defeated!</h2>
-      <p id="victorySub">Final blow by <b>Guild</b>. Top contributor: <b>Guild</b>.</p>
-  <div style="margin-top:14px"><button type="button" class="btn" id="victoryClose">Close</button></div>
     </div>
+
+    <!-- Dock and panels -->
+    <div id="dock" class="panel" style="display:none">
+      <h3>Teacher Dock</h3>
+      <div id="dockBtns"></div>
+      <div class="gBtnRow">
+        <button type="button" class="btn full" id="btnUndo">↶ Undo (U)</button>
+        <button type="button" class="btn full" id="btnReset">Reset Fight (R)</button>
+        <button type="button" class="btn full" id="btnToggleQ">Toggle Question Chip (Q)</button>
+        <button type="button" class="btn full" id="btnToggleTimer">Start/Pause Timer (T)</button>
+      </div>
+    </div>
+
+    <!-- Guild list / logs used by the app UI -->
+    <div id="guildList" style="display:none"></div>
+    <div class="panel" id="logPanel" style="display:none">
+      <h3>Event Log</h3>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- Status chips -->
+    <div style="display:none">
+      <span class="pill" id="qChip">Q: <strong id="qNum">1</strong></span>
+      <span class="pill" id="timerChip">⏱ <strong id="timerText">00:00</strong></span>
+    </div>
+
+    <!-- mute toggle -->
+    <input type="checkbox" id="muteToggle" style="display:none" />
   </div>
-
-  <script>
-    // Load Firebase modules dynamically and gracefully degrade if unavailable.
-    (async function(){
-      try{
-        const modApp = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js');
-        const modDb = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js');
-        const modAuth = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js');
-        const { initializeApp } = modApp;
-        const { getDatabase, ref, onValue, set } = modDb;
-        const { getAuth, signInWithEmailAndPassword, onAuthStateChanged } = modAuth;
-
-        const firebaseConfig = {
-          apiKey: "AIzaSyBsTo0u0r4FaYgg8qg3PmU_FAHmJFWQ8WE",
-          authDomain: "classroom-boss-fight.firebaseapp.com",
-          projectId: "classroom-boss-fight",
-          storageBucket: "classroom-boss-fight.firebasestorage.app",
-          messagingSenderId: "44362539387",
-          appId: "1:44362539387:web:a248b5c667604e89f19dde",
-          databaseURL: "https://classroom-boss-fight-default-rtdb.firebaseio.com"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const auth = getAuth(app);
-
-        const controlsRef = ref(db, 'controls/latest');
-        const _processedControlIds = new Set();
-        let _lastControlId = null; let _lastControlTs = 0; let _processingRemoteControl = false;
-        try{ window._processingRemoteControl = false; }catch(e){}
-
-        onValue(controlsRef, snap => {
-          try{
-            const msg = snap.val(); if(!msg) return;
-            try{ if(msg.id && _processedControlIds.has(msg.id)) return; }catch(e){}
-            try{ if(msg.id && msg.id === _lastControlId) return; if(msg.ts && typeof msg.ts === 'number' && msg.ts <= _lastControlTs) return; }catch(e){}
-            try{ if(window._localLastSentControlId && msg.id === window._localLastSentControlId) return; }catch(e){}
-            if(msg.id){ _lastControlId = msg.id; try{ _processedControlIds.add(msg.id); if(_processedControlIds.size>200) _processedControlIds.clear(); }catch(e){} }
-            if(msg.ts && typeof msg.ts === 'number') _lastControlTs = msg.ts;
-            _processingRemoteControl = true; try{ window._processingRemoteControl = true; }catch(e){}
-            if(msg.action === 'hit'){ if(window.actHit) window.actHit(msg.payload && msg.payload.g); }
-            else if(msg.action === 'miss'){ if(window.actMiss) window.actMiss(msg.payload && msg.payload.g); }
-            else if(msg.action === 'reset'){ if(window.resetFight) window.resetFight(); }
-            else if(msg.action === 'undo'){ if(window.undo) window.undo(); }
-            else if(msg.action === 'config'){
-              const p = msg.payload || {};
-              if(p.subject) { if(window.setSubjectImages) window.setSubjectImages(p.subject); try{ if(window.state) window.state.bossSubject = p.subject; }catch(e){} }
-              if(typeof p.bossHP === 'number'){ try{ if(window.state){ window.state.bossHPMax = clamp(p.bossHP, 1, 20); window.state.bossHP = Math.min(window.state.bossHP||0, window.state.bossHPMax); } }catch(e){} }
-              if(p.background && window.applyBackground) window.applyBackground(p.background);
-              try{ if(window.state){ localStorage.setItem('bossfight_settings', JSON.stringify({ bossName: window.state.bossName, bossHPMax: window.state.bossHPMax, imgs: window.state.imgs, bossSubject: window.state.bossSubject, bossNameLocked: window.state.bossNameLocked, bgName: window.state.bgName, guilds: window.state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})) })); } }catch(e){}
-              if(window.resetFight) { window.resetFight(); if(window.logLine) window.logLine('Remote config applied: fight reset to apply new settings.'); }
-            }
-          }catch(e){ console.error('[DEBUG] controls:onValue handler error', e); }
-          finally{ _processingRemoteControl = false; try{ window._processingRemoteControl = false; }catch(e){} }
-        });
-
-        window.firebaseSendControl = async function(action, payload = {}){
-          try{
-            if(typeof _processingRemoteControl !== 'undefined' && _processingRemoteControl) return;
-            const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
-            try{ window._localLastSentControlId = id; }catch(e){}
-            await set(controlsRef, { id, action, payload, ts: Date.now() });
-          }catch(e){ console.error('firebase send control failed', e); }
-        };
-
-        window.firebaseSignInTeacher = async function(email, password){ const cred = await signInWithEmailAndPassword(auth, email, password); return cred.user; };
-        window.firebaseSignOut = async function(){ try{ await auth.signOut(); try{ window.location.href = 'teacher.html'; }catch(e){} }catch(e){ console.warn('firebaseSignOut error', e); } };
-        onAuthStateChanged(auth, (u)=>{ window.firebaseUser = u || null; try{ window.dispatchEvent(new CustomEvent('firebase-auth-changed', { detail: u })); }catch(e){} });
-      }catch(e){
-        // If firebase cannot be loaded (offline or CDN blocked), provide safe no-op fallbacks so the rest of the page still functions.
-        console.warn('Firebase modules failed to load - realtime teacher controls disabled', e);
-        window.firebaseSendControl = async ()=>{};
-        window.firebaseSignInTeacher = async ()=>{ throw new Error('firebase unavailable'); };
-        window.firebaseSignOut = async ()=>{};
-        window.firebaseUser = null;
-      }
-    })();
-  </script>
-
-  <script>
-    // ===== Utility helpers =====
-    const $ = (sel, el=document) => el.querySelector(sel);
-    const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
-    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-
-    // Minimal confetti
-    function confetti() {
-      const root = document.body; const N = 120;
-      for(let i=0;i<N;i++){
-        const d = document.createElement('div');
-        d.style.position='fixed'; d.style.top='-10px'; d.style.left = Math.random()*100+'vw';
-        d.style.width='8px'; d.style.height='14px'; d.style.opacity='.9';
-        d.style.background = `hsl(${Math.random()*360}, 85%, 65%)`;
-        d.style.transform = `rotate(${Math.random()*360}deg)`;
-        d.style.zIndex='90'; d.style.borderRadius='2px';
-        root.appendChild(d);
-        const dur = 2000 + Math.random()*2000;
-        const tx = (Math.random()*2-1)*120;
-        d.animate([
-          { transform: d.style.transform+` translate(0,0)` },
-          { transform: d.style.transform+` translate(${tx}px, 100vh)` }
-        ], { duration: dur, easing:'cubic-bezier(.2,.6,.2,1)' }).onfinish = ()=> d.remove();
-      }
-    }
-
-    // Simple WebAudio beeps (fallback if no uploaded SFX)
-    let audioCtx = null; function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
-    function beep(type='hit'){
-      if($('#muteToggle').checked) return;
-      ensureAudio();
-      const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-      o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.001, audioCtx.currentTime);
-      const now = audioCtx.currentTime;
-      if(type==='hit'){ o.type='triangle'; o.frequency.setValueAtTime(520, now); g.gain.exponentialRampToValueAtTime(0.12, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.16);
-      } else if(type==='miss'){ o.type='sawtooth'; o.frequency.setValueAtTime(220, now); g.gain.exponentialRampToValueAtTime(0.11, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.22);
-      } else { // win
-        o.type='sine'; o.frequency.setValueAtTime(660, now); g.gain.exponentialRampToValueAtTime(0.13, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.4);
-      }
-      o.start(); o.stop(now+.45);
-    }
-
-    // Uploaded SFX (or loaded from assets)
-    const sfx = { hit:null, miss:null, win:null };
-    // mapping from subject -> sfx filename prefix (adjust if you use different names)
-    const SFX_PREFIX = { 'math':'dragon', 'phonics':'owl', 'story-comprehension':'sphinx' };
-
-    // load sfx files from assets/sfx/<prefix>_hit.wav etc and store as Blobs
-    async function loadSfxForSubject(subject){
-      try{
-        const prefix = SFX_PREFIX[subject];
-        if(!prefix) return;
-        const nameMap = { hit: `${prefix}_hit.wav`, miss: `${prefix}_attack.wav`, win: `${prefix}_victory.wav` };
-        await Promise.all(Object.keys(nameMap).map(async kind=>{
-          const fname = nameMap[kind]; const url = `assets/sfx/${fname}`;
-          try{
-            const res = await fetch(url, {cache:'no-store'});
-            if(!res.ok){ console.warn('loadSfxForSubject: not found', url); sfx[kind] = null; return; }
-            const blob = await res.blob(); sfx[kind] = blob; console.log('loadSfxForSubject: loaded', kind, url);
-          }catch(e){ console.warn('loadSfxForSubject: error loading', url, e); sfx[kind] = null; }
-        }));
-      }catch(e){ console.warn('loadSfxForSubject error', e); }
-    }
-    async function playSFX(kind){
-      if($('#muteToggle').checked) return;
-      const file = sfx[kind];
-      if(file){
-        const url = URL.createObjectURL(file);
-        const a = new Audio(url); a.volume = .9; a.play(); a.onended = ()=> URL.revokeObjectURL(url);
-      } else beep(kind);
-    }
-
-    // ===== State =====
-  const state = {
-      bossName: 'Ancient Drake',
-      bossHPMax: 8, bossHP: 8,
-      guilds: [
-        { name:'Yellow Guild', color: getComputedStyle(document.documentElement).getPropertyValue('--guild1').trim(), hpMax:3, hp:3, hits:0 },
-        { name:'Blue Guild',   color: getComputedStyle(document.documentElement).getPropertyValue('--guild2').trim(), hpMax:3, hp:3, hits:0 },
-        { name:'Purple Guild', color: getComputedStyle(document.documentElement).getPropertyValue('--guild3').trim(), hpMax:3, hp:3, hits:0 },
-      ],
-  imgs:{ base:null, attack:null, hit:null, defeat:null },
-  // subject name maps to folder assets/bosses/{subject}-boss
-  bossSubject: 'math',
-  // whether bossName was explicitly set/saved by user — if true, don't auto-change when switching subject
-  bossNameLocked: false,
-  // image timer id for showing transient images (attack/hit) then reverting
-  imageTimer: null,
-      qEnabled:false, qNum:1,
-      timerEnabled:false, timerRunning:false, startAt:0, elapsed:0,
-      lastHit:null, history:[],  // for undo
-    };
-
-    // ===== Rendering =====
-    function renderHP(){
-      const hp = $('#bossHP'); hp.innerHTML='';
-      for(let i=0;i<state.bossHPMax;i++){
-        const h = document.createElement('div'); h.className='heart'+(i<state.bossHP?'':' empty'); hp.appendChild(h);
-      }
-      $('#bossName').textContent = state.bossName;
-    }
-
-    // friendly default names per subject
-    const SUBJECT_NAMES = {
-      'math': 'Number Dragon',
-      'phonics': 'Phonics Wizard',
-      'story-comprehension': 'Story Sphinx'
-    };
-
-    // Backgrounds: selected name and manifest loader
-    state.bgName = state.bgName || '__default__';
-    let BACKGROUND_LIST = ['__default__'];
-    async function loadBackgroundManifest(){
-      console.log('loadBackgroundManifest: starting');
-      let list = [];
-      try{
-  console.log('loadBackgroundManifest: fetching assets/backgrounds/manifest.json');
-  const res = await fetch('assets/backgrounds/manifest.json', {cache:'no-store'});
-        console.log('loadBackgroundManifest: fetch returned', res && res.status);
-        if(res && res.ok){
-          try{ list = await res.json(); console.log('loadBackgroundManifest: manifest parsed', list); }catch(e){ console.warn('loadBackgroundManifest: manifest parse error', e); }
-          if(Array.isArray(list) && list.length) BACKGROUND_LIST = ['__default__', ...list];
-        } else {
-          console.warn('loadBackgroundManifest: manifest not available or returned non-OK status');
-        }
-      }catch(e){ console.warn('loadBackgroundManifest: fetch failed', e); }
-      const sel = $('#cfgBackground');
-      if(sel){
-        // clear
-        sel.innerHTML = '';
-        // always add default
-        const def = document.createElement('option'); def.value='__default__'; def.textContent='Default'; sel.appendChild(def);
-        // probe each file and only add options that exist
-        await Promise.all(BACKGROUND_LIST.filter(n=> n!=='__default__').map(n=> new Promise(res=>{
-          const img = new Image();
-          img.onload = ()=>{
-            console.log('loadBackgroundManifest: background loaded', n);
-            const opt = document.createElement('option'); opt.value = n;
-            const base = n.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
-            opt.textContent = base.split(' ').map(w=> w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
-            sel.appendChild(opt); res(true);
-          };
-          img.onerror = (err)=>{ console.warn('loadBackgroundManifest: background failed to load', n, err); res(false); };
-          img.src = `assets/backgrounds/${n}`;
-        })));
-        console.log('loadBackgroundManifest: finished probing, total options now', sel.options.length);
-        // set value (if the previously saved background isn't present, fall back to default)
-        try{ sel.value = BACKGROUND_LIST.includes(state.bgName) ? state.bgName : '__default__'; }catch(e){ sel.value='__default__'; }
-      }
-    }
-
-    function applyBackground(name){
-      const host = $('.bossView');
-      if(!host) return;
-  if(!name || name==='__default__'){
-        host.style.backgroundImage = '';
-        state.bgName = '__default__';
-        return;
-      }
-  host.style.backgroundImage = `url(assets/backgrounds/${name})`;
-      host.style.backgroundSize = 'cover'; host.style.backgroundPosition = 'center';
-      state.bgName = name;
-    }
-
-    function renderBoss(imgType='base', animate=false){
-      const img = $('#bossImg');
-      const src = state.imgs[imgType] || state.imgs.base || placeholderImage();
-      img.src = src; if(animate) { img.classList.remove('shake'); void img.offsetWidth; img.classList.add('shake'); $('#flash').classList.add('show'); setTimeout(()=> $('#flash').classList.remove('show'), 280); }
-    }
-
-    // Show a transient image (e.g., 'hit' or 'attack') for `ms` milliseconds, then revert to base
-    function showTempImage(imgType, ms=1400, animate=false){
-      // clear any existing timer
-      if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
-      // if boss is already defeated, don't revert
-      renderBoss(imgType, animate);
-      if(state.bossHP===0) return;
-      state.imageTimer = setTimeout(()=>{
-        state.imageTimer = null;
-        renderBoss('base');
-      }, ms);
-    }
-
-    // Set images using the on-disk boss pack: bosses/{subject}-boss/{picture}-position.png
-    // picture names: base, attack, hit, defeated (we'll map defeated -> defeat)
-    function setSubjectImages(subject){
-      if(!subject) return;
-  state.bossSubject = subject;
-  // expose current subject as data attribute for CSS tweaks
-  try{ document.body.dataset.subject = subject; }catch(e){}
-      // normalize subject to match folder naming in workspace
-  const folder = `${subject}-boss`;
-      // build relative paths that work when opening index.html from filesystem
-      const paths = {
-  base: `assets/bosses/${folder}/base-position.png`,
-  attack: `assets/bosses/${folder}/attack-position.png`,
-  hit: `assets/bosses/${folder}/hit-position.png`,
-  defeat: `assets/bosses/${folder}/defeated-position.png`,
-      };
-      // probe each image: if it loads, keep path; if not, null so renderBoss falls back
-      Object.keys(paths).forEach(key=>{
-        const p = paths[key];
-        const probe = new Image();
-        probe.onload = ()=>{ state.imgs[key] = p; if(key==='base') renderBoss('base'); };
-        probe.onerror = ()=>{ state.imgs[key] = null; if(key==='base') renderBoss('base'); };
-        probe.src = p;
-      });
-  // try to load sfx for this subject from assets/sfx
-  loadSfxForSubject(subject);
-      // set a subject-appropriate boss name unless the name has been explicitly locked by user
-      if(!state.bossNameLocked){
-        const suggested = SUBJECT_NAMES[subject] || subject;
-        state.bossName = suggested;
-        renderHP();
-      }
-      buildDock();
-    }
-
-    function renderGuilds(){
-      const host = $('#guildList'); host.innerHTML='';
-      state.guilds.forEach((g,idx)=>{
-        const el = document.createElement('div'); el.className='guild';
-        const head = document.createElement('div'); head.className='gHead';
-        const dot = document.createElement('span'); dot.className='dot'; dot.style.background = g.color; head.appendChild(dot);
-        const name = document.createElement('div'); name.className='gName'; name.textContent = g.name; head.appendChild(name);
-        const hearts = document.createElement('div'); hearts.className='gHearts';
-        for(let i=0;i<g.hpMax;i++){ const h=document.createElement('div'); h.className='gHeart'+(i<g.hp?'':' empty'); hearts.appendChild(h); }
-        const stats = document.createElement('div'); stats.className='gStats'; stats.textContent = `Hits: ${g.hits}`;
-        el.appendChild(head); el.appendChild(hearts); el.appendChild(stats);
-        host.appendChild(el);
-      });
-    }
-
-    function logLine(text){
-      const l = $('#log'); const row = document.createElement('div'); row.className='logItem'; const ts = new Date().toLocaleTimeString();
-      row.textContent = `[${ts}] ${text}`; l.prepend(row);
-    }
-
-    // ===== Actions =====
-    function actHit(gIndex){
-  if(state.bossHP<=0) return; // already defeated
-  console.log('[DEBUG] actHit called', { gIndex, processing: window._processingRemoteControl, localLastSent: window._localLastSentControlId, lastControlId: _lastControlId });
-  const g = state.guilds[gIndex];
-      const prev = snapshot();
-      state.bossHP = clamp(state.bossHP-1, 0, state.bossHPMax);
-      g.hits += 1; state.lastHit = gIndex;
-      renderHP(); renderGuilds(); renderBoss('hit', true); playSFX('hit');
-      logLine(`${g.name} landed a HIT! Boss HP ${state.bossHP}/${state.bossHPMax}`);
-      state.history.push(prev);
-      // show hit briefly then revert to base
-      if(state.bossHP===0) onVictory();
-      else showTempImage('hit', 1400, true);
-  // broadcast this action so mobile controllers stay in sync (unless this was a remote action)
-  if(!window._processingRemoteControl && window.firebaseSendControl) { console.log('[DEBUG] actHit broadcasting to firebase'); window.firebaseSendControl('hit', { g: gIndex }); }
-    }
-
-    function actMiss(gIndex){
-      const g = state.guilds[gIndex];
-  if(g.hp<=0) { logLine(`${g.name} is already KO'd. No further penalty.`); return; }
-      const prev = snapshot();
-      g.hp = clamp(g.hp-1, 0, g.hpMax);
-      renderGuilds(); renderBoss('attack', true); playSFX('miss');
-  logLine(`${g.name} MISSED! They lose 1 heart (${g.hp}/${g.hpMax}).`);
-      state.history.push(prev);
-  // show attack briefly then revert
-  if(state.guilds.every(x=> x.hp<=0)) onDefeat();
-  else showTempImage('attack', 1200, true);
-  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('miss', { g: gIndex });
-    }
-
-    function onVictory(){
-  // clear any transient timers so defeat image stays
-  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
-  renderBoss('defeat'); playSFX('win'); confetti();
-      const contrib = state.guilds.map((g,i)=>({i, hits:g.hits}));
-      contrib.sort((a,b)=> b.hits-a.hits);
-      const top = contrib[0];
-      const last = state.lastHit;
-      $('#victoryTitle').textContent = `${state.bossName} Defeated!`;
-      const topGuild = top.hits>0 ? state.guilds[top.i].name+` (${top.hits})` : '—';
-      const lastGuild = last!=null ? state.guilds[last].name : '—';
-      $('#victorySub').innerHTML = `Final blow by <b>${lastGuild}</b>. Top contributor: <b>${topGuild}</b>.`;
-  $('#victory').classList.add('show');
-    }
-
-    function onDefeat(){
-      renderBoss('attack'); // dramatic pause
-      logLine(`All guilds are KO'd! The boss prevails...`);
-    }
-
-    function undo(){
-      const prev = state.history.pop(); if(!prev) return;
-      Object.assign(state, JSON.parse(prev));
-  // clear transient image timer and show base
-  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
-  renderHP(); renderGuilds(); renderBoss('base');
-  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('undo', {});
-    }
-
-    function resetFight(){
-      state.bossHP = state.bossHPMax; state.guilds.forEach(g=>{ g.hp = g.hpMax; g.hits=0; }); state.lastHit=null; state.history=[];
-  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
-  renderHP(); renderGuilds(); renderBoss('base'); $('#victory').classList.remove('show'); logLine('Fight reset.');
-  if(!window._processingRemoteControl && window.firebaseSendControl) window.firebaseSendControl('reset', {});
-    }
-
-    function snapshot(){
-      return JSON.stringify({
-        bossName: state.bossName, bossHPMax: state.bossHPMax, bossHP: state.bossHP,
-        guilds: state.guilds.map(g=> ({...g})), imgs: {...state.imgs}, qEnabled: state.qEnabled, qNum: state.qNum,
-        timerEnabled: state.timerEnabled, timerRunning: state.timerRunning, startAt: state.startAt, elapsed: state.elapsed,
-        lastHit: state.lastHit
-      });
-    }
-
-    // ===== Timer =====
-    function tick(){
-      if(!state.timerRunning) return;
-      const now = performance.now();
-      const total = state.elapsed + (now - state.startAt);
-      const sec = Math.floor(total/1000);
-      const m = String(Math.floor(sec/60)).padStart(2,'0');
-      const s = String(sec%60).padStart(2,'0');
-      $('#timerText').textContent = `${m}:${s}`;
-      requestAnimationFrame(tick);
-    }
-
-    function toggleTimer(){
-      state.timerEnabled = !state.timerEnabled;
-      $('#timerChip').hidden = !state.timerEnabled;
-    }
-
-    function startPauseTimer(){
-      if(!state.timerEnabled) toggleTimer();
-      if(!state.timerRunning){ state.timerRunning = true; state.startAt = performance.now(); requestAnimationFrame(tick); }
-      else { state.timerRunning = false; state.elapsed += performance.now() - state.startAt; }
-    }
-
-    // ===== Config =====
-  async function openCfg(){
-      // seed guild cfg
-      const host = $('#guildCfg'); host.innerHTML='';
-      state.guilds.forEach((g,idx)=>{
-        const block = document.createElement('div');
-        block.innerHTML = `
-          <div class="row"><label>Guild ${idx+1} Name</label><input type="text" id="gname${idx}" value="${g.name}"></div>
-          <div class="row"><label>Color</label><input type="color" id="gcolor${idx}" value="${toColorHex(g.color)}"></div>
-          <div class="row"><label>Hearts</label>
-            <select id="ghp${idx}">${[2,3,4,5].map(n=>`<option ${n===g.hpMax?'selected':''}>${n}</option>`).join('')}</select>
-          </div>
-        `;
-        host.appendChild(block);
-      });
-  $('#cfgBossName').value = state.bossName;
-    $('#cfgBossHP').value = String(state.bossHPMax);
-  // set subject select
-  const subj = $('#cfgSubject'); if(subj) subj.value = state.bossSubject || 'math';
-  // populate backgrounds list then set value
-  await loadBackgroundManifest();
-  const bgSel = $('#cfgBackground'); if(bgSel) bgSel.value = state.bgName || '__default__';
-    $('#cfgDlg').showModal();
-    }
-
-    function toColorHex(any){
-      try{
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext && canvas.getContext('2d');
-        if(!ctx) return '#ffffff';
-        ctx.fillStyle = any || '#ffffff';
-        // the canvas will normalize named colors / rgb() to hex string in ctx.fillStyle
-        return ctx.fillStyle;
-      }catch(e){ return '#ffffff'; }
-    }
-
-    function fileToDataURL(file){
-      return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); });
-    }
-
-    async function saveCfg(){
-    const newName = $('#cfgBossName').value.trim() || 'Boss';
-    // if user provided a name different from the suggested one, lock it
-    const suggested = SUBJECT_NAMES[state.bossSubject] || state.bossSubject;
-    state.bossNameLocked = newName !== suggested;
-    state.bossName = newName;
-    // capture old values so we can detect changes that require a reset
-    const oldHP = state.bossHPMax;
-    const oldSubject = state.bossSubject;
-    let hp = parseInt($('#cfgBossHP').value,10);
-    if(isNaN(hp)) hp = 8;
-    state.bossHPMax = clamp(hp, 1, 20);
-    state.bossHP = Math.min(state.bossHP, state.bossHPMax);
-  // subject / image pack
-  const sel = $('#cfgSubject'); if(sel){ setSubjectImages(sel.value); }
-  // background
-  const bsel = $('#cfgBackground'); if(bsel){ const b = bsel.value || '__default__'; applyBackground(b); }
-      // sfx
-      if($('#sfxHit').files[0]) sfx.hit = $('#sfxHit').files[0];
-      if($('#sfxMiss').files[0]) sfx.miss = $('#sfxMiss').files[0];
-      if($('#sfxWin').files[0]) sfx.win = $('#sfxWin').files[0];
-      // guilds
-      state.guilds.forEach((g,idx)=>{
-        g.name = $(`#gname${idx}`).value.trim() || g.name;
-        g.color = $(`#gcolor${idx}`).value || g.color;
-        const n = parseInt($(`#ghp${idx}`).value,10) || g.hpMax;
-        g.hpMax = n; g.hp = Math.min(g.hp, n);
-      });
-      localStorage.setItem('bossfight_settings', JSON.stringify({
-        bossName: state.bossName, bossHPMax: state.bossHPMax, imgs: state.imgs, bossSubject: state.bossSubject, bossNameLocked: state.bossNameLocked, bgName: state.bgName,
-        guilds: state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax})),
-      }));
-      // if either HP or subject changed, reset the fight so the new boss takes effect
-      const subjectChanged = oldSubject !== state.bossSubject;
-      const hpChanged = oldHP !== state.bossHPMax;
-      if(subjectChanged || hpChanged){
-        resetFight();
-        logLine('Boss changed: fight reset to apply new settings.');
-      } else {
-        renderHP(); renderGuilds(); renderBoss('base');
-      }
-      $('#cfgDlg').close();
-    }
-
-    function loadCfg(){
-      const raw = localStorage.getItem('bossfight_settings'); if(!raw) return;
-      try{
-        const cfg = JSON.parse(raw);
-  if(cfg.bossName) { state.bossName = cfg.bossName; }
-  if(typeof cfg.bossNameLocked !== 'undefined') state.bossNameLocked = !!cfg.bossNameLocked;
-  if(cfg.bossHPMax) { state.bossHPMax = clamp(parseInt(cfg.bossHPMax,10)||8, 1, 20); state.bossHP = state.bossHPMax; }
-  if(cfg.imgs) state.imgs = {...state.imgs, ...cfg.imgs};
-  if(cfg.bossSubject) state.bossSubject = cfg.bossSubject;
-  if(cfg.bgName) state.bgName = cfg.bgName;
-        if(Array.isArray(cfg.guilds)){
-          cfg.guilds.forEach((g,i)=>{
-            if(state.guilds[i]){
-              state.guilds[i].name = g.name || state.guilds[i].name;
-              state.guilds[i].color = g.color || state.guilds[i].color;
-              state.guilds[i].hpMax = g.hpMax || state.guilds[i].hpMax; state.guilds[i].hp = state.guilds[i].hpMax;
-            }
-          });
-        }
-      }catch(e){ console.warn('cfg parse', e); }
-    }
-
-    // ===== Placeholder image (SVG data URI) =====
-    function placeholderImage(){
-      const svg = encodeURIComponent(`<?xml version="1.0"?><svg xmlns='http://www.w3.org/2000/svg' width='900' height='600'>
-        <defs>
-          <linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
-            <stop offset='0%' stop-color='#1c2047'/>
-            <stop offset='100%' stop-color='#0f1222'/>
-          </linearGradient>
-        </defs>
-        <rect fill='url(#g)' width='100%' height='100%'/>
-        <g transform='translate(450,320) rotate(-6)'>
-          <circle cx='0' cy='0' r='160' fill='#222a66' stroke='#4450aa' stroke-width='6' opacity='.9'/>
-          <text x='0' y='10' text-anchor='middle' font-family='Segoe UI, Arial' font-size='38' fill='#aab0d5'>Boss Image</text>
-        </g>
-      </svg>`);
-      return `data:image/svg+xml;charset=utf-8,${svg}`;
-    }
-
-    // ===== Teacher Dock (now a visible panel) =====
-    function showDock(on){ const el = $('#dock'); if(!el) return; el.style.display = on ? '' : 'none'; }
-
-    // ===== Keyboard bindings =====
-    window.addEventListener('keydown', (e)=>{
-      if(e.key==='1'){ actHit(0); }
-      else if(e.key==='2'){ actHit(1); }
-      else if(e.key==='3'){ actHit(2); }
-      else if(e.key==='.' ){ const d = $('#dock'); if(d) d.style.display = d.style.display === 'none' ? '' : 'none'; }
-      else if(e.key==='u' || e.key==='U'){ undo(); }
-      else if(e.key==='r' || e.key==='R'){ resetFight(); }
-      else if(e.key==='g' || e.key==='G'){ openCfg(); }
-      else if(e.key==='t' || e.key==='T'){ startPauseTimer(); }
-      else if(e.key==='q' || e.key==='Q'){ $('#qChip').hidden = !$('#qChip').hidden; }
-      else if(e.altKey && e.key==='1'){ actMiss(0); }
-      else if(e.altKey && e.key==='2'){ actMiss(1); }
-      else if(e.altKey && e.key==='3'){ actMiss(2); }
-    });
-
-    // ===== DOM wiring =====
-    // edgeTab/btnHideDock are removed in the new layout
-
-    const btnConfigEl = $('#btnConfig'); if(btnConfigEl) btnConfigEl.addEventListener('click', openCfg);
-  const btnSaveCfgEl = $('#btnSaveCfg'); if(btnSaveCfgEl) btnSaveCfgEl.addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); try{ $('#cfgDlg').close(); }catch(e){} });
-
-    const victoryCloseEl = $('#victoryClose'); if(victoryCloseEl) victoryCloseEl.addEventListener('click', ()=> $('#victory').classList.remove('show'));
-
-    // Dock buttons per guild
-    function buildDock(){
-      const host = $('#dockBtns'); if(!host) return; host.innerHTML='';
-      state.guilds.forEach((g,idx)=>{
-        const row = document.createElement('div'); row.className='gBtnRow';
-        const hit = document.createElement('button'); hit.className='btn hit'; hit.textContent = `${g.name} HIT`;
-        hit.addEventListener('click', ()=>{
-          try{ actHit(idx); }catch(e){ console.error('hit handler error', e); }
-          try{ if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('hit', { g: idx }); }catch(e){}
-        });
-        const miss = document.createElement('button'); miss.className='btn miss'; miss.textContent = `${g.name} MISS`;
-        miss.addEventListener('click', ()=>{
-          try{ actMiss(idx); }catch(e){ console.error('miss handler error', e); }
-          try{ if(window.firebaseUser && window.firebaseSendControl) window.firebaseSendControl('miss', { g: idx }); }catch(e){}
-        });
-        row.appendChild(hit); row.appendChild(miss); host.appendChild(row);
-      });
-    }
-
-  const btnUndoEl = $('#btnUndo'); if(btnUndoEl) btnUndoEl.addEventListener('click', undo);
-  const btnResetEl = $('#btnReset'); if(btnResetEl) btnResetEl.addEventListener('click', resetFight);
-  const btnToggleQEl = $('#btnToggleQ'); if(btnToggleQEl) btnToggleQEl.addEventListener('click', ()=> $('#qChip').hidden = !$('#qChip').hidden);
-  const btnToggleTimerEl = $('#btnToggleTimer'); if(btnToggleTimerEl) btnToggleTimerEl.addEventListener('click', startPauseTimer);
-
-    // when editing config, if the subject select changes and the name isn't locked, update the boss name field
-    const subjEl = $('#cfgSubject');
-    if(subjEl){
-      subjEl.addEventListener('change', ()=>{
-        const v = subjEl.value;
-        if(!state.bossNameLocked){
-          const suggested = SUBJECT_NAMES[v] || v;
-          const nameInput = $('#cfgBossName'); if(nameInput) nameInput.value = suggested;
-        }
-      });
-    }
-
-  // ===== Boot =====
-  loadCfg();
-  // set images from subject pack (if any)
-  if(state.bossSubject) setSubjectImages(state.bossSubject);
-  // load backgrounds manifest and apply saved background (non-blocking)
-  loadBackgroundManifest().then(()=>{
-    if(state.bgName && state.bgName!=='__default__') applyBackground(state.bgName);
-  });
-  renderHP(); renderGuilds(); renderBoss('base'); buildDock();
-
-  // initialize timer UI
-  $('#timerText').textContent='00:00';
-
-  // Show/hide Sign Out button based on firebase auth state
-  window.addEventListener('firebase-auth-changed', (e)=>{
-    const user = e.detail;
-    const btn = $('#btnSignOut'); if(!btn) return;
-    if(user) btn.style.display = '';
-    else btn.style.display = 'none';
-  });
-  const sbtn = $('#btnSignOut'); if(sbtn) sbtn.addEventListener('click', ()=>{ if(window.firebaseSignOut) window.firebaseSignOut(); });
-
-  // Initial log
-  logLine('Ready. Use 1/2/3 for hits and Alt+1/2/3 for misses. Open Config (G) to set subject image pack, colors, and hearts.');
-  </script>
 </body>
 </html>

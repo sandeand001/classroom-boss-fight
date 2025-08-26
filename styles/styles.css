@@ -1,0 +1,23 @@
+:root{
+  --surface:#0f1724; --muted:#9aa4c7; --text:#eef2ff; --accent:#7c9cff; --success:#31d0aa;
+  --radius:12px; --gap:12px; --max-width:980px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#081029,#0f1724);color:var(--text)}
+.site-header{display:flex;align-items:center;justify-content:space-between;padding:12px;max-width:var(--max-width);margin:0 auto}
+.brand{font-weight:700}
+.nav-link{color:var(--muted);margin-left:12px;text-decoration:none}
+.root{max-width:var(--max-width);margin:18px auto;padding:18px;background:rgba(255,255,255,0.02);border-radius:var(--radius)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.1));padding:14px;border-radius:10px}
+
+.form-row{display:grid;gap:8px;margin-bottom:10px}
+label{font-size:13px;color:var(--muted)}
+input,button,select{font:inherit}
+input[type=text],input[type=email],input[type=password]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:var(--text)}
+button{padding:10px 12px;border-radius:8px;border:none;background:var(--accent);color:#03203a;cursor:pointer}
+button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
+.row{display:flex;gap:8px}
+.muted{color:var(--muted);font-size:13px}
+
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+@media (max-width:640px){.site-header{padding:8px}.root{margin:8px;padding:12px}}
