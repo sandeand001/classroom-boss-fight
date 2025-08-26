@@ -20,7 +20,10 @@ jobs:
           mkdir out
           rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' ./ out/
 
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./out
+
       - name: Deploy to Pages
         uses: actions/deploy-pages@v1
-        with:
-          folder: ./out
