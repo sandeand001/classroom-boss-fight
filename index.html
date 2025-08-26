@@ -115,6 +115,9 @@
   /* hide by default; only show when not [hidden] so the hidden attribute works */
   #sliderMenu{display:none}
   #sliderMenu:not([hidden]){display:flex; gap:8px; align-items:center}
+  /* allow dragging the boss image to pan; prevent touch scrolling inside bossView */
+  .bossImg{ touch-action: none; cursor: grab }
+  .bossImg.dragging{ cursor: grabbing }
     .pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:6px 10px; font-size:13px; color:var(--muted)}
     .pill strong{color:var(--ink)}
 
@@ -156,11 +159,11 @@
   <div id="sliderMenu" hidden>
           <label for="bossXSlider" style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);">
             <span>Left/Right</span>
-            <input type="range" id="bossXSlider" min="-200" max="200" step="1" value="0" style="width:120px;">
+            <input type="range" id="bossXSlider" min="-1000" max="1000" step="1" value="0" style="width:180px;">
           </label>
           <label for="bossYSlider" style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);">
             <span>Up/Down</span>
-            <input type="range" id="bossYSlider" min="-200" max="200" step="1" value="0" style="width:120px;">
+            <input type="range" id="bossYSlider" min="-1000" max="1000" step="1" value="0" style="width:180px;">
           </label>
           <label for="bossSizeSlider" style="display:flex; align-items:center; gap:4px; font-size:13px; color:var(--muted);">
             <span>Boss Size</span>
@@ -294,6 +297,34 @@
     [bossSizeSlider, bossXSlider, bossYSlider].forEach(el=> el && el.addEventListener('input', updateBossTransform));
     // Initialize transform on page load
     updateBossTransform();
+
+    // ===== Drag to pan (click-and-drag the boss to adjust X/Y)
+    (function enableDragPan(){
+      const container = document.querySelector('.bossImg');
+      if(!container) return;
+      let dragging=false, startX=0, startY=0, origX=0, origY=0;
+      const clampVal = (v, el)=>{
+        if(!el) return v; const min = parseFloat(el.min!==undefined?el.min:-99999); const max = parseFloat(el.max!==undefined?el.max:99999); return Math.max(min, Math.min(max, v));
+      };
+      const toInt = v=> Math.round(v);
+      container.addEventListener('pointerdown', (e)=>{
+        // only left button
+        if(e.button && e.button!==0) return;
+        dragging = true; container.classList.add('dragging'); container.setPointerCapture(e.pointerId);
+        startX = e.clientX; startY = e.clientY;
+        origX = parseFloat(bossXSlider.value)||0; origY = parseFloat(bossYSlider.value)||0;
+        e.preventDefault();
+      });
+      container.addEventListener('pointermove', (e)=>{
+        if(!dragging) return;
+        const dx = e.clientX - startX; const dy = e.clientY - startY;
+        const newX = clampVal(origX + toInt(dx), bossXSlider);
+        const newY = clampVal(origY + toInt(dy), bossYSlider);
+        bossXSlider.value = newX; bossYSlider.value = newY;
+        updateBossTransform();
+      });
+      ['pointerup','pointercancel','pointerleave'].forEach(ev=> container.addEventListener(ev, (e)=>{ if(!dragging) return; dragging=false; container.classList.remove('dragging'); try{ container.releasePointerCapture(e.pointerId); }catch(_){} }));
+    })();
 
     // Minimal confetti
     function confetti() {
