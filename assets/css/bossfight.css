@@ -1,0 +1,116 @@
+:root{
+  --bg:#0f1222;                /* deep indigo */
+  --panel:#171a2f;
+  --panel-2:#1f2340;
+  --ink:#e8eaf6;               /* off-white */
+  --muted:#aab0d5;
+  --accent:#7c9cff;            /* soft blue */
+  --danger:#ff6b6b;            /* coral red */
+  --success:#31d0aa;           /* teal */
+
+  --guild1:#f2d35b;            /* yellow */
+  --guild2:#5bb2ff;            /* blue */
+  --guild3:#b679ff;            /* purple */
+
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --rounded:18px;
+}
+html,body{height:100%; margin:0; background:radial-gradient(1000px 600px at 20% 0%, #151737 0%, var(--bg) 60%); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+button,input,select{font:inherit}
+.wrap{display:grid; grid-template-rows:auto 1fr auto; min-height:100%;}
+header{display:flex; align-items:center; gap:16px; padding:16px 20px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0));}
+header h1{font-size:20px; margin:0; letter-spacing:.3px; opacity:.95}
+header .sp{flex:1}
+header .chip{background:var(--panel-2); border:1px solid rgba(255,255,255,.07); padding:6px 10px; border-radius:999px; font-size:13px; color:var(--muted)}
+
+/* Boss stage */
+.stage{display:grid; grid-template-columns: 1fr 420px; gap:22px; padding:10px 20px 20px;}
+.bossPane{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,.15)); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow); display:grid; grid-template-rows:auto 1fr}
+.bossHeader{display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 16px;}
+.bossName{font-size:22px; letter-spacing:.5px}
+.hp{display:flex; gap:6px; align-items:center;}
+.heart{width:22px; height:22px; border-radius:4px; background:linear-gradient(180deg,#ef6b88,#b93852); box-shadow:inset 0 -2px 0 rgba(0,0,0,.2); transform:skew(-6deg);}
+.heart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
+
+.bossView{position:relative; overflow:hidden; border-top:1px solid rgba(255,255,255,.05);}
+.bossImg{ position:absolute; inset:0; display:grid; place-items:center; width:100%; height:100%; max-width:100vw; max-height:100vh; transition: transform .18s ease; touch-action:none; cursor:grab }
+.bossImg.dragging{ cursor:grabbing }
+.bossImg img{ max-width:100%; max-height:100%; object-fit:contain; filter:drop-shadow(0 30px 40px rgba(0,0,0,.35)); transition:opacity .18s ease; }
+.shake{animation:shake .35s ease}
+@keyframes shake{10%{transform:translateX(-10px)} 20%{transform:translateX(12px)} 35%{transform:translateX(-8px)} 55%{transform:translateX(6px)} 75%{transform:translateX(-4px)} 100%{transform:none}}
+
+.flashHit{position:absolute; inset:0; pointer-events:none; background:radial-gradient(400px 260px at 50% 50%, rgba(255,255,255,.22), rgba(255,255,255,0)); opacity:0;}
+.flashHit.show{animation:flash .3s ease}
+@keyframes flash{0%{opacity:.9}100%{opacity:0}}
+
+/* Right panel — guilds */
+.side{display:grid; gap:16px}
+.panel{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow);}
+.panel h3{margin:12px 16px; font-size:16px; color:var(--muted); font-weight:600}
+
+.guilds{display:grid; gap:12px; padding:0 14px 16px}
+.guild{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.08)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 12px; display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center}
+.gHead{display:flex; align-items:center; gap:10px}
+.dot{width:12px; height:12px; border-radius:50%}
+.gName{font-weight:700; letter-spacing:.3px}
+.gHearts{display:flex; gap:5px}
+.gHeart{width:16px; height:16px; border-radius:3px; background:linear-gradient(180deg,#6ae6ca,#1a9f85)}
+.gHeart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
+.gStats{grid-column:1/-1; font-size:12px; color:var(--muted)}
+
+.log{max-height:160px; overflow:auto; padding:0 16px 12px}
+.logItem{font-size:12px; color:var(--muted)}
+
+/* controls dock (legacy off-screen style kept for reference) */
+.edgeTab{position:fixed; right:0; top:0; width:3px; height:100vh; z-index:60}
+.dock{position:fixed; top:0; right:-260px; width:260px; height:100vh; background:rgba(16,19,42,.98); border-left:1px solid rgba(255,255,255,.08); box-shadow: -8px 0 30px rgba(0,0,0,.3); transition:right .18s ease; z-index:70; display:flex; flex-direction:column}
+.dock.show{right:0}
+.dock header{padding:12px 12px 6px; display:flex; gap:8px; align-items:center}
+.dock h4{margin:0; font-size:14px; color:var(--muted)}
+.dock .gBtnRow{display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px 12px}
+.btn{padding:10px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.1)); color:var(--ink); cursor:pointer}
+.btn:hover{filter:brightness(1.15)}
+.btn.hit{border-color:rgba(49,208,170,.5)}
+.btn.miss{border-color:rgba(255,107,107,.5)}
+.btn.full{grid-column:1/-1}
+.btn.hit, .btn.miss{ font-weight:800; text-shadow:0 1px 0 rgba(0,0,0,.45); }
+
+/* config modal */
+dialog{border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--ink); width:min(940px, 95vw)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.cfg{display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:16px}
+.cfg section{background:var(--panel-2); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
+.cfg h4{margin:0 0 8px 0; font-size:14px; color:var(--muted)}
+.row{display:grid; grid-template-columns: 140px 1fr; align-items:center; gap:8px; margin:6px 0}
+.row label{font-size:13px; color:var(--muted)}
+.row input[type="text"], .row input[type="number"], .row select{background:#15183a; color:var(--ink); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px}
+.row input[type="color"]{width:42px; height:30px; border:none; background:transparent}
+.cfg .actions{grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; padding:8px 12px}
+
+/* timer & question chip */
+.chips{display:flex; gap:10px; align-items:center}
+#sliderMenu{display:none}
+#sliderMenu:not([hidden]){display:flex; gap:8px; align-items:center}
+.pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:6px 10px; font-size:13px; color:var(--muted)}
+.pill strong{color:var(--ink)}
+
+/* top notification banner */
+.banner{position:fixed; top:10px; left:0; right:0; display:none; justify-content:center; z-index:90; pointer-events:none}
+.banner.show{display:flex}
+.bannerCard{pointer-events:auto; background:var(--panel-2); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px 18px; min-width:min(420px,90vw); text-align:center; box-shadow:var(--shadow)}
+.bannerCard h2{margin:0 0 10px 0}
+.bannerCard p{margin:8px 0; color:var(--muted)}
+
+/* mini help */
+.help{font-size:12px; color:var(--muted)}
+
+/* responsive */
+@media (max-width: 980px){ .stage{grid-template-columns:1fr} }
+
+/* Teacher Dock (visible panel) styling */
+.panel#dock{padding:12px; display:flex; flex-direction:column; gap:12px}
+.panel#dock h3{margin:0; font-size:16px; color:var(--muted)}
+#dockBtns{display:flex; flex-direction:column; gap:10px}
+#dockBtns .gBtnRow{display:flex; gap:8px}
+#dockBtns .gBtnRow .btn{flex:1}
+.panel#dock .gBtnRow{margin-top:6px}
