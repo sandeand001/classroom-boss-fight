@@ -4,19 +4,169 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Class Bossfight — Review Mode</title>
-  <link rel="stylesheet" href="assets/css/bossfight.css" />
+  <style>
+    :root{
+      --bg:#0f1222;                /* deep indigo */
+      --panel:#171a2f;
+      --panel-2:#1f2340;
+      --ink:#e8eaf6;               /* off-white */
+      --muted:#aab0d5;
+      --accent:#7c9cff;            /* soft blue */
+      --danger:#ff6b6b;            /* coral red */
+      --success:#31d0aa;           /* teal */
+
+      --guild1:#f2d35b;            /* yellow */
+      --guild2:#5bb2ff;            /* blue */
+      --guild3:#b679ff;            /* purple */
+
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --rounded:18px;
+    }
+    html,body{height:100%; margin:0; background:radial-gradient(1000px 600px at 20% 0%, #151737 0%, var(--bg) 60%); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+    button,input,select{font:inherit}
+    .wrap{display:grid; grid-template-rows:auto 1fr auto; min-height:100%;}
+    header{display:flex; align-items:center; gap:16px; padding:16px 20px; background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0));}
+  header h1{font-size:20px; margin:0; letter-spacing:.3px; opacity:.95}
+  .inlineSettings{display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:var(--panel); padding:8px 12px; border:1px solid rgba(255,255,255,.08); border-radius:14px; font-size:12px}
+  .inlineSettings label{display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted)}
+  .inlineSettings input[type="text"]{background:#15183a; color:var(--ink); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:4px 8px; font-size:12px; width:140px}
+  .inlineSettings input[type="number"], .inlineSettings select{background:#15183a; color:var(--ink); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:4px 6px; font-size:12px}
+  .inlineSettings select{min-width:110px}
+  .inlineSettings small{color:var(--muted); font-size:11px}
+  .bgThumbs{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; padding:4px 0}
+  .bgThumb{width:62px; height:42px; border:2px solid rgba(255,255,255,.15); border-radius:8px; background-size:cover; background-position:center; cursor:pointer; position:relative; box-shadow:0 2px 6px rgba(0,0,0,.3);}
+  .bgThumb[data-active="true"]{outline:2px solid var(--accent); border-color:var(--accent);}
+  .bgThumb span{position:absolute; left:4px; bottom:2px; font-size:9px; background:rgba(0,0,0,.55); padding:2px 4px; border-radius:4px; letter-spacing:.5px}
+    header .sp{flex:1}
+    header .chip{background:var(--panel-2); border:1px solid rgba(255,255,255,.07); padding:6px 10px; border-radius:999px; font-size:13px; color:var(--muted)}
+
+    /* Boss stage */
+    .stage{display:grid; grid-template-columns: 1fr 420px; gap:22px; padding:10px 20px 20px;}
+    .bossPane{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,.15)); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow); display:grid; grid-template-rows:auto 1fr}
+    .bossHeader{display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 16px;}
+    .bossName{font-size:22px; letter-spacing:.5px}
+    .hp{display:flex; gap:6px; align-items:center;}
+    .heart{width:22px; height:22px; border-radius:4px; background:linear-gradient(180deg,#ef6b88,#b93852); box-shadow:inset 0 -2px 0 rgba(0,0,0,.2); transform:skew(-6deg);}
+    .heart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
+
+    .bossView{position:relative; overflow:hidden; border-top:1px solid rgba(255,255,255,.05);}
+    .bossImg{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      width:100%;
+      height:100%;
+      max-width:100vw;
+      max-height:100vh;
+    transition: transform .18s ease; /* animate container transform (scale/translate) */
+    }
+    .bossImg img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  filter:drop-shadow(0 30px 40px rgba(0,0,0,.35));
+  transition:opacity .18s ease; /* keep opacity transition on the image; container handles transform */
+    }
+    .shake{animation:shake .35s ease}
+    @keyframes shake{10%{transform:translateX(-10px)} 20%{transform:translateX(12px)} 35%{transform:translateX(-8px)} 55%{transform:translateX(6px)} 75%{transform:translateX(-4px)} 100%{transform:none}}
+
+    .flashHit{position:absolute; inset:0; pointer-events:none; background:radial-gradient(400px 260px at 50% 50%, rgba(255,255,255,.22), rgba(255,255,255,0)); opacity:0;}
+    .flashHit.show{animation:flash .3s ease}
+    @keyframes flash{0%{opacity:.9}100%{opacity:0}}
+
+    /* Right panel — guilds */
+    .side{display:grid; gap:16px}
+    .panel{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:var(--rounded); box-shadow:var(--shadow);}
+    .panel h3{margin:12px 16px; font-size:16px; color:var(--muted); font-weight:600}
+
+    .guilds{display:grid; gap:12px; padding:0 14px 16px}
+    .guild{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.08)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 12px; display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center}
+    .gHead{display:flex; align-items:center; gap:10px}
+    .dot{width:12px; height:12px; border-radius:50%}
+    .gName{font-weight:700; letter-spacing:.3px}
+    .gHearts{display:flex; gap:5px}
+    .gHeart{width:16px; height:16px; border-radius:3px; background:linear-gradient(180deg,#6ae6ca,#1a9f85)}
+    .gHeart.empty{background:linear-gradient(180deg,#3a3a52,#2a2a3b); opacity:.5}
+    .gStats{grid-column:1/-1; font-size:12px; color:var(--muted)}
+
+    .log{max-height:160px; overflow:auto; padding:0 16px 12px}
+    .logItem{font-size:12px; color:var(--muted)}
+
+    /* controls dock (off-screen, slides in on edge hover or hotkey) */
+    .edgeTab{position:fixed; right:0; top:0; width:3px; height:100vh; z-index:60}
+    .dock{position:fixed; top:0; right:-260px; width:260px; height:100vh; background:rgba(16,19,42,.98); border-left:1px solid rgba(255,255,255,.08); box-shadow: -8px 0 30px rgba(0,0,0,.3); transition:right .18s ease; z-index:70; display:flex; flex-direction:column}
+    .dock.show{right:0}
+    .dock header{padding:12px 12px 6px; display:flex; gap:8px; align-items:center}
+    .dock h4{margin:0; font-size:14px; color:var(--muted)}
+    .dock .gBtnRow{display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding:8px 12px}
+    .btn{padding:10px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.1)); color:var(--ink); cursor:pointer}
+    .btn:hover{filter:brightness(1.15)}
+    .btn.hit{border-color:rgba(49,208,170,.5)}
+    .btn.miss{border-color:rgba(255,107,107,.5)}
+    .btn.full{grid-column:1/-1}
+  /* stronger, bolder hit/miss text for legibility */
+  .btn.hit, .btn.miss{ font-weight:800; text-shadow:0 1px 0 rgba(0,0,0,.45); }
+
+    /* config modal */
+    dialog{border:none; border-radius:16px; padding:0; background:var(--panel); color:var(--ink); width:min(940px, 95vw)}
+    dialog::backdrop{background:rgba(0,0,0,.5)}
+    .cfg{display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:16px}
+    .cfg section{background:var(--panel-2); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px}
+    .cfg h4{margin:0 0 8px 0; font-size:14px; color:var(--muted)}
+    .row{display:grid; grid-template-columns: 140px 1fr; align-items:center; gap:8px; margin:6px 0}
+    .row label{font-size:13px; color:var(--muted)}
+    .row input[type="text"], .row input[type="number"], .row select{background:#15183a; color:var(--ink); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px}
+    .row input[type="color"]{width:42px; height:30px; border:none; background:transparent}
+    .cfg .actions{grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; padding:8px 12px}
+
+    /* timer & question chip */
+    .chips{display:flex; gap:10px; align-items:center}
+  /* hide by default; only show when not [hidden] so the hidden attribute works */
+  #sliderMenu{display:none}
+  #sliderMenu:not([hidden]){display:flex; gap:8px; align-items:center}
+  /* allow dragging the boss image to pan; prevent touch scrolling inside bossView */
+  .bossImg{ touch-action: none; cursor: grab }
+  .bossImg.dragging{ cursor: grabbing }
+    .pill{background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:6px 10px; font-size:13px; color:var(--muted)}
+    .pill strong{color:var(--ink)}
+
+  /* top notification banner (doesn't cover main boss image) */
+  .banner{position:fixed; top:10px; left:0; right:0; display:none; justify-content:center; z-index:90; pointer-events:none}
+  .banner.show{display:flex}
+  .bannerCard{pointer-events:auto; background:var(--panel-2); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px 18px; min-width:min(420px,90vw); text-align:center; box-shadow:var(--shadow)}
+    .bannerCard h2{margin:0 0 10px 0}
+    .bannerCard p{margin:8px 0; color:var(--muted)}
+
+    /* mini help */
+    .help{font-size:12px; color:var(--muted)}
+
+    /* responsive */
+    @media (max-width: 980px){
+      .stage{grid-template-columns:1fr}
+    }
+  /* Teacher Dock (visible panel) styling - scoped to avoid changing original off-screen dock rules */
+  .panel#dock{padding:12px; display:flex; flex-direction:column; gap:12px}
+  .panel#dock h3{margin:0; font-size:16px; color:var(--muted)}
+  #dockBtns{display:flex; flex-direction:column; gap:10px}
+  #dockBtns .gBtnRow{display:flex; gap:8px}
+  #dockBtns .gBtnRow .btn{flex:1}
+  .panel#dock .gBtnRow{margin-top:6px}
+  /* subject-specific tweaks */
+  /* (removed per-subject boss image sizing to ensure consistent boss image rendering) */
+  </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>Bossfight</h1>
+  <h1>Bossfight</h1>
       <span class="chip">Press <b>.</b> to toggle Teacher Dock · <b>1/2/3</b> = Hit · <b>Alt+1/2/3</b> = Miss</span>
       <span class="sp"></span>
       <div class="chips">
         <span class="pill" id="qChip" hidden>Q: <strong id="qNum">1</strong></span>
         <span class="pill" id="timerChip" hidden>⏱ <strong id="timerText">00:00</strong></span>
         <button id="btnSliders" class="pill" aria-expanded="false" title="Show controls" style="margin-right:8px;">Adjust Boss ▾</button>
-        <div id="sliderMenu" hidden>
+  <div id="sliderMenu" hidden>
           <label for="bossXSlider" style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);">
             <span>Left/Right</span>
             <input type="range" id="bossXSlider" min="-1000" max="1000" step="1" value="0" style="width:180px;">
@@ -32,6 +182,30 @@
         </div>
         <button class="btn" id="btnConfig" title="Configure (G)">⚙️ Config</button>
       </div>
+      <div class="inlineSettings" id="bossSettingsBar">
+        <label> Name <input type="text" id="inlineBossName" value="Ancient Drake" /></label>
+        <label> HP <input type="number" id="inlineBossHP" min="1" max="20" value="8" style="width:60px" /></label>
+        <label> Subject
+          <select id="inlineSubject">
+            <option value="math">Math</option>
+            <option value="phonics">Phonics</option>
+            <option value="story-comprehension">Story</option>
+          </select>
+        </label>
+        <label> Style
+          <select id="bossVariant">
+            <option value="cute">Cute</option>
+            <option value="cool">Cool</option>
+          </select>
+        </label>
+        <label> Background
+          <select id="inlineBackground">
+            <option value="__default__">Default</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="inlineResetBoss" title="Refill hearts and clear damage">Reset Boss Fight</button>
+      </div>
+      <div id="bgThumbs" class="bgThumbs" aria-label="Background thumbnails"></div>
     </header>
 
     <main class="stage">
@@ -53,6 +227,7 @@
           <h3>Guilds</h3>
           <div class="guilds" id="guildList"></div>
         </div>
+        <!-- Teacher Dock (visible panel) -->
         <div class="panel" id="dock">
           <h3>Teacher Dock</h3>
           <div style="padding:8px 12px; color:var(--muted); font-size:12px">Fight Controls</div>
@@ -68,7 +243,7 @@
     </main>
 
     <footer style="padding:10px 16px; color:var(--muted); display:flex; align-items:center; gap:10px">
-      <span class="help">Hidden controls: <b>1/2/3</b> Hit · <b>Alt+1/2/3</b> Miss · <b>U</b> Undo · <b>R</b> Reset · <b>G</b> Config (choose subject pack) · <b>T</b> Timer · <b>Q</b> Toggle question chip</span>
+  <span class="help">Hidden controls: <b>1/2/3</b> Hit · <b>Alt+1/2/3</b> Miss · <b>U</b> Undo · <b>R</b> Reset · <b>G</b> Config (choose subject pack) · <b>T</b> Timer · <b>Q</b> Toggle question chip</span>
       <span class="sp"></span>
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
         <input type="checkbox" id="muteToggle"/> Mute SFX
@@ -76,43 +251,26 @@
     </footer>
   </div>
 
+  <!-- Event Log moved here (hidden by default) -->
   <div class="panel" id="logPanel" style="display:none">
     <h3>Event Log</h3>
     <div class="log" id="log"></div>
   </div>
 
+  <!-- Config Modal -->
   <dialog id="cfgDlg">
     <form method="dialog" class="cfg" id="cfgForm">
-      <section>
-        <h4>Boss Settings</h4>
-        <div class="row"><label>Boss Name</label><input type="text" id="cfgBossName" value="Ancient Drake"></div>
-        <div class="row"><label>Boss Hearts</label>
-          <span>
-            <input type="number" id="cfgBossHP" min="1" max="20" value="8">
-            <small style="color:var(--muted); margin-left:6px">Enter 1–20. You can change mid-fight.</small>
-          </span>
-        </div>
-        <div class="row"><label>Image Pack</label>
-          <div style="display:grid; gap:8px">
-            <select id="cfgSubject">
-              <option value="math">Math</option>
-              <option value="phonics">Phonics</option>
-              <option value="story-comprehension">Story Comprehension</option>
-            </select>
-          </div>
-        </div>
-        <div class="row"><label>Background</label>
-          <div style="display:grid; gap:8px">
-            <select id="cfgBackground">
-              <option value="__default__">Default</option>
-            </select>
-          </div>
-        </div>
-      </section>
+  <!-- Boss settings moved inline; dialog now only handles guild & audio -->
 
       <section>
         <h4>Guilds & Audio</h4>
         <div id="guildCfg"></div>
+        <div style="margin-top:10px; display:grid; gap:8px; font-size:12px; color:var(--muted)">
+          <div><label style="display:flex; flex-direction:column; gap:4px;">Hit SFX <input type="file" id="sfxHit" accept="audio/*"></label></div>
+          <div><label style="display:flex; flex-direction:column; gap:4px;">Miss SFX <input type="file" id="sfxMiss" accept="audio/*"></label></div>
+          <div><label style="display:flex; flex-direction:column; gap:4px;">Victory SFX <input type="file" id="sfxWin" accept="audio/*"></label></div>
+          <small>Upload optional custom sounds (overrides subject defaults for this session).</small>
+        </div>
       </section>
 
       <div class="actions">
@@ -122,6 +280,7 @@
     </form>
   </dialog>
 
+  <!-- Victory Banner -->
   <div class="banner" id="victory">
     <div class="bannerCard">
       <h2 id="victoryTitle">Boss Defeated!</h2>
@@ -130,6 +289,718 @@
     </div>
   </div>
 
-  <script src="assets/js/bossfight.js" defer></script>
+  <script>
+    // ===== Utility helpers =====
+    const $ = (sel, el=document) => el.querySelector(sel);
+    const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+    // Boss transform controls: size + position
+    const bossSizeSlider = document.getElementById('bossSizeSlider');
+    const bossXSlider = document.getElementById('bossXSlider');
+    const bossYSlider = document.getElementById('bossYSlider');
+  // container that will receive transforms (translate + scale)
+  const bossImg = document.querySelector('.bossImg');
+    function updateBossTransform(){
+      const s = parseFloat(bossSizeSlider.value) || 1;
+      const x = parseFloat(bossXSlider.value) || 0;
+      const y = parseFloat(bossYSlider.value) || 0;
+  bossImg.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+    }
+    [bossSizeSlider, bossXSlider, bossYSlider].forEach(el=> el && el.addEventListener('input', updateBossTransform));
+    // Initialize transform on page load
+    updateBossTransform();
+
+    // ===== Drag to pan (click-and-drag the boss to adjust X/Y)
+    (function enableDragPan(){
+      const container = document.querySelector('.bossImg');
+      if(!container) return;
+      let dragging=false, startX=0, startY=0, origX=0, origY=0;
+      const clampVal = (v, el)=>{
+        if(!el) return v; const min = parseFloat(el.min!==undefined?el.min:-99999); const max = parseFloat(el.max!==undefined?el.max:99999); return Math.max(min, Math.min(max, v));
+      };
+      const toInt = v=> Math.round(v);
+      container.addEventListener('pointerdown', (e)=>{
+        // only left button
+        if(e.button && e.button!==0) return;
+        dragging = true; container.classList.add('dragging'); container.setPointerCapture(e.pointerId);
+        startX = e.clientX; startY = e.clientY;
+        origX = parseFloat(bossXSlider.value)||0; origY = parseFloat(bossYSlider.value)||0;
+        e.preventDefault();
+      });
+      container.addEventListener('pointermove', (e)=>{
+        if(!dragging) return;
+        const dx = e.clientX - startX; const dy = e.clientY - startY;
+        const newX = clampVal(origX + toInt(dx), bossXSlider);
+        const newY = clampVal(origY + toInt(dy), bossYSlider);
+        bossXSlider.value = newX; bossYSlider.value = newY;
+        updateBossTransform();
+      });
+      ['pointerup','pointercancel','pointerleave'].forEach(ev=> container.addEventListener(ev, (e)=>{ if(!dragging) return; dragging=false; container.classList.remove('dragging'); try{ container.releasePointerCapture(e.pointerId); }catch(_){} }));
+    })();
+
+    // Minimal confetti
+    function confetti() {
+      const root = document.body; const N = 120;
+      for(let i=0;i<N;i++){
+        const d = document.createElement('div');
+        d.style.position='fixed'; d.style.top='-10px'; d.style.left = Math.random()*100+'vw';
+        d.style.width='8px'; d.style.height='14px'; d.style.opacity='.9';
+        d.style.background = `hsl(${Math.random()*360}, 85%, 65%)`;
+        d.style.transform = `rotate(${Math.random()*360}deg)`;
+        d.style.zIndex='90'; d.style.borderRadius='2px';
+        root.appendChild(d);
+        const dur = 2000 + Math.random()*2000;
+        const tx = (Math.random()*2-1)*120;
+        d.animate([
+          { transform: d.style.transform+` translate(0,0)` },
+          { transform: d.style.transform+` translate(${tx}px, 100vh)` }
+        ], { duration: dur, easing:'cubic-bezier(.2,.6,.2,1)' }).onfinish = ()=> d.remove();
+      }
+    }
+
+    // Simple WebAudio beeps (fallback if no uploaded SFX)
+    let audioCtx = null; function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+    function beep(type='hit'){
+      if($('#muteToggle').checked) return;
+      ensureAudio();
+      const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.001, audioCtx.currentTime);
+      const now = audioCtx.currentTime;
+      if(type==='hit'){ o.type='triangle'; o.frequency.setValueAtTime(520, now); g.gain.exponentialRampToValueAtTime(0.12, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.16);
+      } else if(type==='miss'){ o.type='sawtooth'; o.frequency.setValueAtTime(220, now); g.gain.exponentialRampToValueAtTime(0.11, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.22);
+      } else { // win
+        o.type='sine'; o.frequency.setValueAtTime(660, now); g.gain.exponentialRampToValueAtTime(0.13, now+.01); g.gain.exponentialRampToValueAtTime(0.001, now+.4);
+      }
+      o.start(); o.stop(now+.45);
+    }
+
+    // Uploaded SFX (or loaded from assets)
+    const sfx = { hit:null, miss:null, win:null };
+    // mapping from subject -> sfx filename prefix (adjust if you use different names)
+    const SFX_PREFIX = { 'math':'dragon', 'phonics':'owl', 'story-comprehension':'sphinx' };
+
+    // load sfx files from assets/sfx/<prefix>_hit.wav etc and store as Blobs
+    async function loadSfxForSubject(subject){
+      try{
+        const prefix = SFX_PREFIX[subject];
+        if(!prefix) return;
+        const nameMap = { hit: `${prefix}_hit.wav`, miss: `${prefix}_attack.wav`, win: `${prefix}_victory.wav` };
+        await Promise.all(Object.keys(nameMap).map(async kind=>{
+          const fname = nameMap[kind]; const url = `assets/sfx/${fname}`;
+          try{
+            const res = await fetch(url, {cache:'no-store'});
+            if(!res.ok){ console.warn('loadSfxForSubject: not found', url); sfx[kind] = null; return; }
+            const blob = await res.blob(); sfx[kind] = blob; console.log('loadSfxForSubject: loaded', kind, url);
+          }catch(e){ console.warn('loadSfxForSubject: error loading', url, e); sfx[kind] = null; }
+        }));
+      }catch(e){ console.warn('loadSfxForSubject error', e); }
+    }
+    async function playSFX(kind){
+      if($('#muteToggle').checked) return;
+      const file = sfx[kind];
+      if(file){
+        const url = URL.createObjectURL(file);
+        const a = new Audio(url); a.volume = .9; a.play(); a.onended = ()=> URL.revokeObjectURL(url);
+      } else beep(kind);
+    }
+
+    // ===== State =====
+  const state = {
+      bossName: 'Ancient Drake',
+      bossHPMax: 8, bossHP: 8,
+      guilds: [
+        { name:'Yellow Guild', color: getComputedStyle(document.documentElement).getPropertyValue('--guild1').trim(), hpMax:3, hp:3, hits:0 },
+        { name:'Blue Guild',   color: getComputedStyle(document.documentElement).getPropertyValue('--guild2').trim(), hpMax:3, hp:3, hits:0 },
+        { name:'Purple Guild', color: getComputedStyle(document.documentElement).getPropertyValue('--guild3').trim(), hpMax:3, hp:3, hits:0 },
+      ],
+  imgs:{ base:null, attack:null, hit:null, defeat:null },
+  // subject name maps to folder assets/bosses/{subject}-boss
+  bossSubject: 'math',
+  bossVariant: 'cute', // 'cute' | 'cool'
+  // whether bossName was explicitly set/saved by user — if true, don't auto-change when switching subject
+  bossNameLocked: false,
+  // image timer id for showing transient images (attack/hit) then reverting
+  imageTimer: null,
+      qEnabled:false, qNum:1,
+      timerEnabled:false, timerRunning:false, startAt:0, elapsed:0,
+      lastHit:null, history:[],  // for undo
+    };
+
+    // ===== Rendering =====
+    function renderHP(){
+      const hp = $('#bossHP'); hp.innerHTML='';
+      for(let i=0;i<state.bossHPMax;i++){
+        const h = document.createElement('div'); h.className='heart'+(i<state.bossHP?'':' empty'); hp.appendChild(h);
+      }
+      $('#bossName').textContent = state.bossName;
+    }
+
+    // friendly default names per subject
+    const SUBJECT_NAMES = {
+      'math': 'Number Dragon',
+      'phonics': 'Phonics Wizard',
+      'story-comprehension': 'Story Sphinx'
+    };
+
+    // Backgrounds: selected name and manifest loader
+    state.bgName = state.bgName || '__default__';
+    let BACKGROUND_LIST = ['__default__'];
+    const FALLBACK_BACKGROUNDS = ['clouds.jpg','field.jpg','forest.jpg','night-forest.jpg','night-sky.jpg'];
+  async function loadBackgroundManifest(){
+      console.log('loadBackgroundManifest: starting');
+      let list = [];
+      try{
+        console.log('loadBackgroundManifest: fetching assets/backgrounds/manifest.json');
+        const res = await fetch('assets/backgrounds/manifest.json', {cache:'no-store'});
+        console.log('loadBackgroundManifest: fetch returned', res && res.status);
+        if(res && res.ok){
+          try{ list = await res.json(); console.log('loadBackgroundManifest: manifest parsed', list); }catch(e){ console.warn('loadBackgroundManifest: manifest parse error', e); }
+        } else {
+          console.warn('loadBackgroundManifest: manifest not available or returned non-OK status');
+        }
+      }catch(e){ console.warn('loadBackgroundManifest: fetch failed', e); }
+      if(!Array.isArray(list) || !list.length){
+        console.warn('loadBackgroundManifest: using fallback background list');
+        list = FALLBACK_BACKGROUNDS;
+      }
+      BACKGROUND_LIST = ['__default__', ...list];
+      // Populate both config background select (if still present) and inline background select
+  const selects = [$('#cfgBackground'), $('#inlineBackground')].filter(Boolean);
+      selects.forEach(sel=>{
+        sel.innerHTML = '';
+        const addOpt = (val, label)=>{ const o=document.createElement('option'); o.value=val; o.textContent=label; sel.appendChild(o); };
+        addOpt('__default__', 'Default');
+        BACKGROUND_LIST.filter(n=> n!=='__default__').forEach(n=>{
+          const base = n.replace(/\.[^/.]+$/, '').replace(/[-_]+/g,' ');
+          const label = base.split(' ').map(w=> w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+            addOpt(n, label);
+        });
+        try{ sel.value = BACKGROUND_LIST.includes(state.bgName) ? state.bgName : '__default__'; }catch(e){ sel.value='__default__'; }
+      });
+      // build thumbnails after selects populated
+      buildBackgroundThumbnails();
+    }
+
+    function buildBackgroundThumbnails(){
+      const host = document.getElementById('bgThumbs'); if(!host) return;
+      host.innerHTML='';
+      BACKGROUND_LIST.filter(n=> n!=='__default__').forEach(n=>{
+        const div = document.createElement('button');
+        div.type='button';
+        div.className='bgThumb';
+        div.style.backgroundImage = `url(assets/backgrounds/${n})`;
+        div.setAttribute('data-name', n);
+        if(state.bgName===n) div.setAttribute('data-active','true');
+        const label = n.replace(/\.[^/.]+$/, '').replace(/[-_]+/g,' ').split(' ').map(w=> w[0].toUpperCase()+w.slice(1)).join(' ');
+        const span = document.createElement('span'); span.textContent = label.length>9?label.slice(0,9)+'…':label; div.appendChild(span);
+        div.addEventListener('click', ()=>{
+          state.bgName = n; applyBackground(n); persistSettings();
+          // update select if exists
+          const sel = document.getElementById('inlineBackground'); if(sel){ sel.value = n; }
+          host.querySelectorAll('.bgThumb').forEach(t=> t.removeAttribute('data-active'));
+          div.setAttribute('data-active','true');
+        });
+        host.appendChild(div);
+      });
+    }
+
+    function applyBackground(name){
+      const host = $('.bossView');
+      if(!host) return;
+  if(!name || name==='__default__'){
+        host.style.backgroundImage = '';
+        state.bgName = '__default__';
+        return;
+      }
+  host.style.backgroundImage = `url(assets/backgrounds/${name})`;
+      host.style.backgroundSize = 'cover'; host.style.backgroundPosition = 'center';
+      state.bgName = name;
+    }
+
+    function renderBoss(imgType='base', animate=false){
+      const img = $('#bossImg');
+      const src = state.imgs[imgType] || state.imgs.base || placeholderImage();
+      // attempt to normalize image (crop transparent padding and center in square canvas)
+      normalizeAndSetImage(img, src, 512).catch(()=>{ img.src = src; });
+      if(animate) { img.classList.remove('shake'); void img.offsetWidth; img.classList.add('shake'); $('#flash').classList.add('show'); setTimeout(()=> $('#flash').classList.remove('show'), 280); }
+    }
+
+    // Normalize an image by cropping transparent bounds and centering content into a square canvas
+    async function normalizeAndSetImage(imgEl, src, size=512){
+      return new Promise((resolve, reject)=>{
+        try{
+          const i = new Image();
+          i.crossOrigin = 'anonymous';
+          i.onload = ()=>{
+            try{
+              // draw full image to temp canvas to read pixels
+              const t = document.createElement('canvas'); t.width = i.width; t.height = i.height;
+              const tctx = t.getContext('2d'); tctx.clearRect(0,0,t.width,t.height); tctx.drawImage(i,0,0);
+              const data = tctx.getImageData(0,0,t.width,t.height).data;
+              let minX=t.width, minY=t.height, maxX=0, maxY=0, found=false;
+              for(let y=0;y<t.height;y+=1){
+                for(let x=0;x<t.width;x+=1){
+                  const idx = (y*t.width + x)*4 + 3; // alpha
+                  if(data[idx] > 10){ // non-transparent
+                    found = true; if(x<minX) minX=x; if(x>maxX) maxX=x; if(y<minY) minY=y; if(y>maxY) maxY=y;
+                  }
+                }
+              }
+              if(!found){ // nothing opaque — fallback to original
+                imgEl.src = src; resolve(); return;
+              }
+              const contentW = maxX - minX + 1; const contentH = maxY - minY + 1;
+              const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+              const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+              // compute scale to fit content into canvas with some padding
+              const padding = 0.9; // use 90% of canvas
+              const scale = Math.min((canvas.width*padding)/contentW, (canvas.height*padding)/contentH);
+              const destW = contentW * scale; const destH = contentH * scale;
+              const dx = (canvas.width - destW)/2;
+              // Bottom alignment fix: maintain consistent baseline across frames (prevents hit image from jumping up)
+              const margin = (1 - padding) * canvas.height / 2; // same margin top & bottom originally
+              const dy = canvas.height - destH - margin; // shift down so bottom margin constant
+              ctx.drawImage(i, minX, minY, contentW, contentH, dx, dy, destW, destH);
+              // set as data URL
+              imgEl.src = canvas.toDataURL('image/png');
+              resolve();
+            }catch(err){ reject(err); }
+          };
+          i.onerror = (e)=> reject(e);
+          i.src = src;
+        }catch(e){ reject(e); }
+      });
+    }
+
+    // Normalize an image and return a data URL (does not modify DOM)
+    function normalizeToDataURL(src, size=512){
+      return new Promise((resolve, reject)=>{
+        const i = new Image(); i.crossOrigin = 'anonymous';
+        i.onload = ()=>{
+          try{
+            const t = document.createElement('canvas'); t.width = i.width; t.height = i.height;
+            const tctx = t.getContext('2d'); tctx.clearRect(0,0,t.width,t.height); tctx.drawImage(i,0,0);
+            const data = tctx.getImageData(0,0,t.width,t.height).data;
+            let minX=t.width, minY=t.height, maxX=0, maxY=0, found=false;
+            for(let y=0;y<t.height;y+=1){
+              for(let x=0;x<t.width;x+=1){
+                const idx = (y*t.width + x)*4 + 3;
+                if(data[idx] > 10){ found=true; if(x<minX) minX=x; if(x>maxX) maxX=x; if(y<minY) minY=y; if(y>maxY) maxY=y; }
+              }
+            }
+            if(!found){ resolve(src); return; }
+            const contentW = maxX - minX + 1; const contentH = maxY - minY + 1;
+            const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+            const padding = 0.9;
+            const scale = Math.min((canvas.width*padding)/contentW, (canvas.height*padding)/contentH);
+            const destW = contentW * scale; const destH = contentH * scale;
+            const dx = (canvas.width - destW)/2;
+            const margin = (1 - padding) * canvas.height / 2;
+            const dy = canvas.height - destH - margin; // bottom align for frame consistency
+            ctx.drawImage(i, minX, minY, contentW, contentH, dx, dy, destW, destH);
+            resolve(canvas.toDataURL('image/png'));
+          }catch(err){ reject(err); }
+        };
+        i.onerror = (e)=> reject(e);
+        i.src = src;
+      });
+    }
+
+    // Show a transient image (e.g., 'hit' or 'attack') for `ms` milliseconds, then revert to base
+    function showTempImage(imgType, ms=1400, animate=false){
+      // clear any existing timer
+      if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
+      // if boss is already defeated, don't revert
+      renderBoss(imgType, animate);
+      if(state.bossHP===0) return;
+      state.imageTimer = setTimeout(()=>{
+        state.imageTimer = null;
+        renderBoss('base');
+      }, ms);
+    }
+
+    // Set images using the on-disk boss pack: bosses/{subject}-boss/{picture}-position.png
+    // picture names: base, attack, hit, defeated (we'll map defeated -> defeat)
+    function setSubjectImages(subject){
+      if(!subject) return;
+      state.bossSubject = subject;
+      try{ document.body.dataset.subject = subject; }catch(e){}
+      const variant = state.bossVariant || 'cute';
+      const folder = `${subject}-boss/${variant}`; // new variant-aware path
+      const paths = {
+        base: `assets/bosses/${folder}/base-position.png`,
+        attack: `assets/bosses/${folder}/attack-position.png`,
+        hit: `assets/bosses/${folder}/hit-position.png`,
+        defeat: `assets/bosses/${folder}/defeated-position.png`,
+      };
+      Object.keys(paths).forEach(key=>{
+        const p = paths[key];
+        normalizeToDataURL(p, 512).then(dataUrl=>{
+          state.imgs[key] = dataUrl; if(key==='base') renderBoss('base');
+        }).catch(()=>{
+          const probe = new Image();
+          probe.onload = ()=>{ state.imgs[key] = p; if(key==='base') renderBoss('base'); };
+          probe.onerror = ()=>{ state.imgs[key] = null; if(key==='base') renderBoss('base'); };
+          probe.src = p;
+        });
+      });
+      loadSfxForSubject(subject);
+      if(!state.bossNameLocked){
+        const suggested = SUBJECT_NAMES[subject] || subject; state.bossName = suggested; renderHP();
+      }
+      buildDock();
+      persistSettings();
+    }
+
+    function setVariant(variant){
+      if(!variant || variant===state.bossVariant) return;
+      state.bossVariant = variant; setSubjectImages(state.bossSubject); // reload images
+      persistSettings();
+    }
+
+    function renderGuilds(){
+      const host = $('#guildList'); host.innerHTML='';
+      state.guilds.forEach((g,idx)=>{
+        const el = document.createElement('div'); el.className='guild';
+        const head = document.createElement('div'); head.className='gHead';
+        const dot = document.createElement('span'); dot.className='dot'; dot.style.background = g.color; head.appendChild(dot);
+        const name = document.createElement('div'); name.className='gName'; name.textContent = g.name; head.appendChild(name);
+        const hearts = document.createElement('div'); hearts.className='gHearts';
+        for(let i=0;i<g.hpMax;i++){ const h=document.createElement('div'); h.className='gHeart'+(i<g.hp?'':' empty'); hearts.appendChild(h); }
+        const stats = document.createElement('div'); stats.className='gStats'; stats.textContent = `Hits: ${g.hits}`;
+        el.appendChild(head); el.appendChild(hearts); el.appendChild(stats);
+        host.appendChild(el);
+      });
+    }
+
+    function logLine(text){
+      const l = $('#log'); const row = document.createElement('div'); row.className='logItem'; const ts = new Date().toLocaleTimeString();
+      row.textContent = `[${ts}] ${text}`; l.prepend(row);
+    }
+
+    // ===== Actions =====
+    function actHit(gIndex){
+      if(state.bossHP<=0) return; // already defeated
+      const g = state.guilds[gIndex];
+      const prev = snapshot();
+      state.bossHP = clamp(state.bossHP-1, 0, state.bossHPMax);
+      g.hits += 1; state.lastHit = gIndex;
+      renderHP(); renderGuilds(); renderBoss('hit', true); playSFX('hit');
+      logLine(`${g.name} landed a HIT! Boss HP ${state.bossHP}/${state.bossHPMax}`);
+      state.history.push(prev);
+      // show hit briefly then revert to base
+      if(state.bossHP===0) onVictory();
+      else showTempImage('hit', 1400, true);
+    }
+
+    function actMiss(gIndex){
+      const g = state.guilds[gIndex];
+      if(g.hp<=0) { logLine(`${g.name} is already KO'd. No further penalty.`); return; }
+      const prev = snapshot();
+      g.hp = clamp(g.hp-1, 0, g.hpMax);
+      renderGuilds(); renderBoss('attack', true); playSFX('miss');
+  logLine(`${g.name} MISSED! They lose 1 heart (${g.hp}/${g.hpMax}).`);
+      state.history.push(prev);
+  // show attack briefly then revert
+  if(state.guilds.every(x=> x.hp<=0)) onDefeat();
+  else showTempImage('attack', 1200, true);
+    }
+
+    function onVictory(){
+  // clear any transient timers so defeat image stays
+  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
+  renderBoss('defeat'); playSFX('win'); confetti();
+      const contrib = state.guilds.map((g,i)=>({i, hits:g.hits}));
+      contrib.sort((a,b)=> b.hits-a.hits);
+      const top = contrib[0];
+      const last = state.lastHit;
+      $('#victoryTitle').textContent = `${state.bossName} Defeated!`;
+      const topGuild = top.hits>0 ? state.guilds[top.i].name+` (${top.hits})` : '—';
+      const lastGuild = last!=null ? state.guilds[last].name : '—';
+      $('#victorySub').innerHTML = `Final blow by <b>${lastGuild}</b>. Top contributor: <b>${topGuild}</b>.`;
+  $('#victory').classList.add('show');
+    }
+
+    function onDefeat(){
+      renderBoss('attack'); // dramatic pause
+      logLine(`All guilds are KO'd! The boss prevails...`);
+    }
+
+    function undo(){
+      const prev = state.history.pop(); if(!prev) return;
+      Object.assign(state, JSON.parse(prev));
+  // clear transient image timer and show base
+  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
+  renderHP(); renderGuilds(); renderBoss('base');
+    }
+
+    function resetFight(){
+      state.bossHP = state.bossHPMax; state.guilds.forEach(g=>{ g.hp = g.hpMax; g.hits=0; }); state.lastHit=null; state.history=[];
+  if(state.imageTimer){ clearTimeout(state.imageTimer); state.imageTimer = null; }
+  renderHP(); renderGuilds(); renderBoss('base'); $('#victory').classList.remove('show'); logLine('Fight reset.');
+    }
+
+    function snapshot(){
+      return JSON.stringify({
+        bossName: state.bossName, bossHPMax: state.bossHPMax, bossHP: state.bossHP,
+        guilds: state.guilds.map(g=> ({...g})), imgs: {...state.imgs}, qEnabled: state.qEnabled, qNum: state.qNum,
+        timerEnabled: state.timerEnabled, timerRunning: state.timerRunning, startAt: state.startAt, elapsed: state.elapsed,
+        lastHit: state.lastHit
+      });
+    }
+
+    // ===== Timer =====
+    function tick(){
+      if(!state.timerRunning) return;
+      const now = performance.now();
+      const total = state.elapsed + (now - state.startAt);
+      const sec = Math.floor(total/1000);
+      const m = String(Math.floor(sec/60)).padStart(2,'0');
+      const s = String(sec%60).padStart(2,'0');
+      $('#timerText').textContent = `${m}:${s}`;
+      requestAnimationFrame(tick);
+    }
+
+    function toggleTimer(){
+      state.timerEnabled = !state.timerEnabled;
+      $('#timerChip').hidden = !state.timerEnabled;
+    }
+
+    function startPauseTimer(){
+      if(!state.timerEnabled) toggleTimer();
+      if(!state.timerRunning){ state.timerRunning = true; state.startAt = performance.now(); requestAnimationFrame(tick); }
+      else { state.timerRunning = false; state.elapsed += performance.now() - state.startAt; }
+    }
+
+    // ===== Config =====
+  async function openCfg(){
+    // seed guild cfg only
+    const host = $('#guildCfg'); host.innerHTML='';
+    state.guilds.forEach((g,idx)=>{
+      const block = document.createElement('div');
+      block.innerHTML = `
+        <div class="row"><label>Guild ${idx+1} Name</label><input type="text" id="gname${idx}" value="${g.name}"></div>
+        <div class="row"><label>Color</label><input type="color" id="gcolor${idx}" value="${toColorHex(g.color)}"></div>
+        <div class="row"><label>Hearts</label>
+          <select id="ghp${idx}">${[2,3,4,5].map(n=>`<option ${n===g.hpMax?'selected':''}>${n}</option>`).join('')}</select>
+        </div>`;
+      host.appendChild(block);
+    });
+    $('#cfgDlg').showModal();
+  }
+
+    function toColorHex(any){
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.fillStyle = any; return ctx.fillStyle; // normalized hex
+    }
+
+    function fileToDataURL(file){
+      return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); });
+    }
+
+  async function saveCfg(){
+    // SFX uploads (optional)
+    try{
+      const hitF = $('#sfxHit'); if(hitF && hitF.files && hitF.files[0]) sfx.hit = hitF.files[0];
+      const missF = $('#sfxMiss'); if(missF && missF.files && missF.files[0]) sfx.miss = missF.files[0];
+      const winF = $('#sfxWin'); if(winF && winF.files && winF.files[0]) sfx.win = winF.files[0];
+    }catch(e){ console.warn('SFX upload issue', e); }
+    // guilds
+    state.guilds.forEach((g,idx)=>{
+      const nameEl = $(`#gname${idx}`); if(nameEl) g.name = nameEl.value.trim() || g.name;
+      const colorEl = $(`#gcolor${idx}`); if(colorEl) g.color = colorEl.value || g.color;
+      const hpEl = $(`#ghp${idx}`); if(hpEl){ const n = parseInt(hpEl.value,10) || g.hpMax; const changed = n!==g.hpMax; g.hpMax = n; g.hp = Math.min(g.hp, n); if(changed) { /* don't reset whole fight, just cap hp */ } }
+    });
+    persistSettings();
+    renderHP(); renderGuilds(); buildDock();
+    $('#cfgDlg').close();
+  }
+
+    function loadCfg(){
+      const raw = localStorage.getItem('bossfight_settings'); if(!raw) return;
+      try{
+        const cfg = JSON.parse(raw);
+  if(cfg.bossName) { state.bossName = cfg.bossName; }
+  if(typeof cfg.bossNameLocked !== 'undefined') state.bossNameLocked = !!cfg.bossNameLocked;
+  if(cfg.bossHPMax) { state.bossHPMax = clamp(parseInt(cfg.bossHPMax,10)||8, 1, 20); state.bossHP = state.bossHPMax; }
+  if(cfg.imgs) state.imgs = {...state.imgs, ...cfg.imgs};
+  if(cfg.bossSubject) state.bossSubject = cfg.bossSubject;
+  if(cfg.bossVariant) state.bossVariant = cfg.bossVariant;
+  if(cfg.bgName) state.bgName = cfg.bgName;
+        if(Array.isArray(cfg.guilds)){
+          cfg.guilds.forEach((g,i)=>{
+            if(state.guilds[i]){
+              state.guilds[i].name = g.name || state.guilds[i].name;
+              state.guilds[i].color = g.color || state.guilds[i].color;
+              state.guilds[i].hpMax = g.hpMax || state.guilds[i].hpMax; state.guilds[i].hp = state.guilds[i].hpMax;
+            }
+          });
+        }
+      }catch(e){ console.warn('cfg parse', e); }
+    }
+
+    function persistSettings(){
+      localStorage.setItem('bossfight_settings', JSON.stringify({
+        bossName: state.bossName, bossHPMax: state.bossHPMax, imgs: state.imgs, bossSubject: state.bossSubject, bossVariant: state.bossVariant, bossNameLocked: state.bossNameLocked, bgName: state.bgName,
+        guilds: state.guilds.map(g=> ({name:g.name, color:g.color, hpMax:g.hpMax}))
+      }));
+    }
+
+    // ===== Placeholder image (SVG data URI) =====
+    function placeholderImage(){
+      const svg = encodeURIComponent(`<?xml version="1.0"?><svg xmlns='http://www.w3.org/2000/svg' width='900' height='600'>
+        <defs>
+          <linearGradient id='g' x1='0' x2='0' y1='0' y2='1'>
+            <stop offset='0%' stop-color='#1c2047'/>
+            <stop offset='100%' stop-color='#0f1222'/>
+          </linearGradient>
+        </defs>
+        <rect fill='url(#g)' width='100%' height='100%'/>
+        <g transform='translate(450,320) rotate(-6)'>
+          <circle cx='0' cy='0' r='160' fill='#222a66' stroke='#4450aa' stroke-width='6' opacity='.9'/>
+          <text x='0' y='10' text-anchor='middle' font-family='Segoe UI, Arial' font-size='38' fill='#aab0d5'>Boss Image</text>
+        </g>
+      </svg>`);
+      return `data:image/svg+xml;charset=utf-8,${svg}`;
+    }
+
+    // ===== Teacher Dock (now a visible panel) =====
+    function showDock(on){ const el = $('#dock'); if(!el) return; el.style.display = on ? '' : 'none'; }
+
+    // ===== Keyboard bindings =====
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='1'){ actHit(0); }
+      else if(e.key==='2'){ actHit(1); }
+      else if(e.key==='3'){ actHit(2); }
+      else if(e.key==='.' ){ const d = $('#dock'); if(d) d.style.display = d.style.display === 'none' ? '' : 'none'; }
+      else if(e.key==='u' || e.key==='U'){ undo(); }
+      else if(e.key==='r' || e.key==='R'){ resetFight(); }
+      else if(e.key==='g' || e.key==='G'){ openCfg(); }
+      else if(e.key==='t' || e.key==='T'){ startPauseTimer(); }
+      else if(e.key==='q' || e.key==='Q'){ $('#qChip').hidden = !$('#qChip').hidden; }
+      else if(e.altKey && e.key==='1'){ actMiss(0); }
+      else if(e.altKey && e.key==='2'){ actMiss(1); }
+      else if(e.altKey && e.key==='3'){ actMiss(2); }
+    });
+
+    // ===== DOM wiring =====
+    // edgeTab/btnHideDock are removed in the new layout
+
+    $('#btnConfig').addEventListener('click', openCfg);
+    $('#btnSaveCfg').addEventListener('click', (e)=>{ e.preventDefault(); saveCfg(); });
+
+    // toggle collapsible slider menu
+    const btnSliders = document.getElementById('btnSliders');
+    const sliderMenu = document.getElementById('sliderMenu');
+    if(btnSliders && sliderMenu){
+      btnSliders.addEventListener('click', ()=>{
+        // flip hidden state
+        sliderMenu.hidden = !sliderMenu.hidden;
+        btnSliders.setAttribute('aria-expanded', String(!sliderMenu.hidden));
+        btnSliders.textContent = sliderMenu.hidden ? 'Adjust Boss ▾' : 'Adjust Boss ▴';
+      });
+    }
+
+    $('#victoryClose').addEventListener('click', ()=> $('#victory').classList.remove('show'));
+
+    // Dock buttons per guild
+    function buildDock(){
+      const host = $('#dockBtns'); host.innerHTML='';
+      state.guilds.forEach((g,idx)=>{
+        const row = document.createElement('div'); row.className='gBtnRow';
+  const hit = document.createElement('button'); hit.className='btn hit'; hit.textContent = `${g.name} HIT`; hit.onclick=()=>actHit(idx); hit.setAttribute('data-text', `${g.name} HIT`);
+  const miss = document.createElement('button'); miss.className='btn miss'; miss.textContent = `${g.name} MISS`; miss.onclick=()=>actMiss(idx); miss.setAttribute('data-text', `${g.name} MISS`);
+        // apply guild color to buttons
+        try{
+          hit.style.background = g.color;
+          miss.style.background = g.color;
+          // choose readable foreground (black or white)
+          const rgba = getComputedStyle(document.documentElement).getPropertyValue('--ink');
+          // use green for hit text and red for miss text (site vars)
+          const successColor = getComputedStyle(document.documentElement).getPropertyValue('--success') || '#31d0aa';
+          const dangerColor = getComputedStyle(document.documentElement).getPropertyValue('--danger') || '#ff6b6b';
+          hit.style.color = successColor.trim();
+          miss.style.color = dangerColor.trim();
+          // slightly differentiate miss with lower opacity
+          miss.style.opacity = '0.92';
+          hit.style.border = 'none'; miss.style.border = 'none';
+        }catch(e){}
+        row.appendChild(hit); row.appendChild(miss); host.appendChild(row);
+      });
+    }
+
+    // pick black or white depending on luminance for readability
+    function readableTextColor(hexOrRgb){
+      try{
+        const c = document.createElement('canvas').getContext('2d'); c.fillStyle = hexOrRgb; const rgb = c.fillStyle;
+        // rgb is like rgb(r,g,b)
+        const m = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
+        if(!m) return '#fff';
+        const r = parseInt(m[1],10), g = parseInt(m[2],10), b = parseInt(m[3],10);
+        const luminance = (0.299*r + 0.587*g + 0.114*b)/255;
+        return luminance > 0.6 ? '#000' : '#fff';
+      }catch(e){ return '#fff'; }
+    }
+
+    $('#btnUndo').addEventListener('click', undo);
+    $('#btnReset').addEventListener('click', resetFight);
+    $('#btnToggleQ').addEventListener('click', ()=> $('#qChip').hidden = !$('#qChip').hidden);
+    $('#btnToggleTimer').addEventListener('click', startPauseTimer);
+
+    // when editing config, if the subject select changes and the name isn't locked, update the boss name field
+    // Inline subject / variant / name / HP / background controls
+    const inlineSubject = $('#inlineSubject');
+    if(inlineSubject){
+      inlineSubject.addEventListener('change', ()=>{ setSubjectImages(inlineSubject.value); });
+    }
+    const variantSel = $('#bossVariant');
+    if(variantSel){ variantSel.addEventListener('change', ()=> setVariant(variantSel.value)); }
+    const inlineName = $('#inlineBossName');
+    if(inlineName){
+      inlineName.addEventListener('input', ()=>{
+        const v = inlineName.value.trim();
+        const suggested = SUBJECT_NAMES[state.bossSubject] || state.bossSubject;
+        state.bossNameLocked = v !== suggested;
+        state.bossName = v || 'Boss';
+        renderHP(); persistSettings();
+      });
+    }
+    const inlineHP = $('#inlineBossHP');
+    if(inlineHP){
+      inlineHP.addEventListener('change', ()=>{
+        let hp = parseInt(inlineHP.value,10); if(isNaN(hp)) hp = state.bossHPMax; hp = clamp(hp,1,20);
+        const changed = hp !== state.bossHPMax; state.bossHPMax = hp; state.bossHP = Math.min(state.bossHP, hp);
+        if(changed) { resetFight(); logLine('Boss HP changed: fight reset.'); }
+        else { renderHP(); }
+        persistSettings();
+      });
+    }
+    const inlineBg = $('#inlineBackground');
+    if(inlineBg){ inlineBg.addEventListener('change', ()=>{ applyBackground(inlineBg.value); persistSettings(); }); }
+  const inlineReset = $('#inlineResetBoss');
+  if(inlineReset){ inlineReset.addEventListener('click', ()=>{ resetFight(); logLine('Boss fight manually reset via inline button.'); }); }
+
+  // ===== Boot =====
+  loadCfg();
+  // set images from subject pack (if any)
+  if(state.bossSubject) setSubjectImages(state.bossSubject);
+  // load backgrounds manifest and apply saved background (non-blocking)
+  loadBackgroundManifest().then(()=>{ if(state.bgName && state.bgName!=='__default__') applyBackground(state.bgName); });
+  // initialize inline controls from loaded config
+  (function initInline(){
+    const inlineName2 = document.getElementById('inlineBossName'); if(inlineName2) inlineName2.value = state.bossName;
+    const inlineHP2 = document.getElementById('inlineBossHP'); if(inlineHP2) inlineHP2.value = state.bossHPMax;
+    const subjSel2 = document.getElementById('inlineSubject'); if(subjSel2) subjSel2.value = state.bossSubject;
+    const variant2 = document.getElementById('bossVariant'); if(variant2) variant2.value = state.bossVariant || 'cute';
+  })();
+  renderHP(); renderGuilds(); renderBoss('base'); buildDock();
+
+  // initialize timer UI
+  $('#timerText').textContent='00:00';
+
+  // Initial log
+  logLine('Ready. Use 1/2/3 for hits and Alt+1/2/3 for misses. Open Config (G) to set subject image pack, colors, and hearts.');
+  </script>
 </body>
 </html>
